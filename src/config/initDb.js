@@ -1,8 +1,9 @@
 const pool = require('./db');
 
 const initDb = async () => {
-  const client = await pool.connect();
+  let client;
   try {
+    client = await pool.connect();
     await client.query(`
       CREATE TABLE IF NOT EXISTS users (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -69,7 +70,7 @@ const initDb = async () => {
   } catch (err) {
     console.error('❌ Failed to initialize database tables:', err.message);
   } finally {
-    client.release();
+    if (client) client.release();
   }
 };
 
