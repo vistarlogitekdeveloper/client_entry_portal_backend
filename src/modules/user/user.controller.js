@@ -15,3 +15,51 @@ exports.getAllUsers = async (req, res) => {
   }
 };
 
+exports.getAdminUsers = async (req, res) => {
+  try {
+    const users = await service.getAllUsersAdmin();
+    res.json({ success: true, data: users });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+exports.createUser = async (req, res) => {
+  try {
+    const user = await service.createUser(req.body);
+    res.json({ success: true, data: user, message: 'User created successfully' });
+  } catch (err) {
+    // Check for unique constraint violation on email
+    if (err.code === '23505') {
+      return res.status(400).json({ success: false, message: 'Email already exists' });
+    }
+    res.status(400).json({ success: false, message: err.message });
+  }
+};
+
+exports.updateUser = async (req, res) => {
+  try {
+    const user = await service.updateUser(req.params.id, req.body);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+    res.json({ success: true, data: user, message: 'User updated successfully' });
+  } catch (err) {
+    if (err.code === '23505') {
+      return res.status(400).json({ success: false, message: 'Email already exists' });
+    }
+    res.status(400).json({ success: false, message: err.message });
+  }
+};
+
+exports.deleteUser = async (req, res) => {
+  try {
+    const user = await service.deleteUser(req.params.id);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+    res.json({ success: true, message: 'User deleted successfully' });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};

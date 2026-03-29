@@ -217,3 +217,13 @@ exports.updateLead = async (id, data, actor) => {
   const result = await pool.query(query, values);
   return result.rows[0];
 };
+
+// ✅ DELETE LEADS
+exports.deleteLead = async (id, actor) => {
+  // Only called by ADMIN via middleware, but just in case:
+  let query = `DELETE FROM lead_master WHERE id = $1 RETURNING *`;
+  const values = [id];
+
+  const result = await pool.query(query, values);
+  return result.rows[0];
+};

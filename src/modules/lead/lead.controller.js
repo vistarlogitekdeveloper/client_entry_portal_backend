@@ -49,3 +49,18 @@ exports.update = async (req, res) => {
     res.status(400).json({ success: false, message: err.message });
   }
 };
+
+// ✅ DELETE
+exports.deleteLead = async (req, res) => {
+  try {
+    const lead = await service.deleteLead(req.params.id, req.user);
+
+    if (!lead) {
+      return res.status(404).json({ success: false, message: 'Lead not found' });
+    }
+
+    res.json({ success: true, message: 'Lead deleted successfully' });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
