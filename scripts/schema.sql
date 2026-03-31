@@ -36,7 +36,7 @@ CREATE TABLE IF NOT EXISTS lead_master (
     projected_value NUMERIC(15, 2),
     projected_month DATE,
     progress_status VARCHAR(100) CHECK (progress_status IN ('PLANNING', 'EXECUTION', 'HOLD', 'COMPLETED')),
-    final_status VARCHAR(50) CHECK (final_status IN ('WON', 'LOST', 'PENDING')),
+    final_status VARCHAR(50),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
