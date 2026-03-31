@@ -33,7 +33,7 @@ exports.getDashboardStats = async (actor, filterMonth, filterYear) => {
       COALESCE(SUM(lm.projected_value), 0)::NUMERIC AS total_value
     FROM lead_master lm
     JOIN users u ON lm.owner = u.id
-    ${commonWhere} ${actorWhere.replace('owner', 'lm.owner')}
+    ${commonWhere.replace(/created_at/g, 'lm.created_at')} ${actorWhere.replace(/owner/g, 'lm.owner')}
     GROUP BY u.id, u.name
   `;
 
