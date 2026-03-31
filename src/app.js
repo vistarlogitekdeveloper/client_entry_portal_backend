@@ -44,3 +44,7 @@ app.use('/api/auth', authRoutes);
 // Users dropdown (assign owner)
 const userRoutes = require('./modules/user/user.routes');
 app.use('/api/users', userRoutes);
+
+// Customer master
+const customerRoutes = require('./modules/customer/customer.routes');
+app.use('/api/customers', customerRoutes);

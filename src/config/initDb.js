@@ -66,6 +66,23 @@ const initDb = async () => {
       );
 
       -- ============================================================
+      -- CUSTOMER MASTER
+      -- Stores customer/company + contact person details
+      -- ============================================================
+      CREATE TABLE IF NOT EXISTS customer_master (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        customer_name VARCHAR(255) NOT NULL,
+        person_name VARCHAR(255) NOT NULL,
+        email VARCHAR(255),
+        mobile VARCHAR(50),
+        status VARCHAR(20) DEFAULT 'PENDING' CHECK (status IN ('PENDING', 'APPROVED', 'REJECTED')),
+        approved_by UUID REFERENCES users(id) ON DELETE SET NULL,
+        approved_at TIMESTAMP,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+
+      -- ============================================================
       -- LEAD FIELD AUDIT (field-level change tracking)
       -- Each PUT /api/leads/:id creates one "event" row and one row
       -- per changed field so UI can show who changed what and when.
