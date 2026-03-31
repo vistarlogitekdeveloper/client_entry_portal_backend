@@ -20,6 +20,16 @@ exports.getAll = async (req, res) => {
   }
 };
 
+// ✅ UNIQUE CUSTOMER NAMES (company_name) for dropdowns / filters
+exports.getUniqueCustomerNames = async (req, res) => {
+  try {
+    const names = await service.getUniqueCompanyNames(req.user);
+    res.json({ success: true, data: names });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
 // ✅ GET ONE BY ID
 exports.getById = async (req, res) => {
   try {

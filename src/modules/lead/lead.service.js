@@ -136,6 +136,28 @@ exports.getLeads = async (filters, actor) => {
   return result.rows;
 };
 
+// ✅ DISTINCT customer (company) names — one row per unique name after trim
+exports.getUniqueCompanyNames = async (actor) => {
+  let query = `
+    SELECT DISTINCT TRIM(company_name) AS company_name
+    FROM lead_master
+    WHERE company_name IS NOT NULL
+      AND TRIM(company_name) <> ''
+  `;
+  const values = [];
+  let i = 1;
+
+  if (isBD(actor)) {
+    query += ` AND owner = $${i++}`;
+    values.push(actor.id);
+  }
+
+  query += ` ORDER BY company_name ASC`;
+
+  const result = await pool.query(query, values);
+  return result.rows.map((r) => r.company_name);
+};
+
 // ✅ GET ONE BY ID
 exports.getLeadById = async (id, actor) => {
   let query = `SELECT * FROM lead_master WHERE id = $1`;
