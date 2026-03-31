@@ -9,11 +9,12 @@ const requireNonEmptyString = (value, field) => {
 };
 
 exports.createCustomer = async (data) => {
-  const customer_name = requireNonEmptyString(data.customer_name, 'customer_name');
+  const customer_name = requireNonEmptyString(data.customer_name, 'customer_name').toUpperCase();
   const person_name = requireNonEmptyString(data.person_name, 'person_name');
 
   const email = data.email ? String(data.email).trim() : null;
   const mobile = data.mobile ? String(data.mobile).trim() : null;
+  const lead_rfq_enquiry_date = data.lead_rfq_enquiry_date ?? data.received_created_date ?? null;
 
   const query = `
     INSERT INTO customer_master (
@@ -21,29 +22,31 @@ exports.createCustomer = async (data) => {
       person_name,
       email,
       mobile,
+      lead_rfq_enquiry_date,
       status
     )
-    VALUES ($1, $2, $3, $4, 'PENDING')
-    RETURNING id, customer_name, person_name, email, mobile, status, approved_by, approved_at, created_at, updated_at
+    VALUES ($1, $2, $3, $4, $5, 'PENDING')
+    RETURNING id, customer_name, person_name, email, mobile, lead_rfq_enquiry_date, status, approved_by, approved_at, created_at, updated_at
   `;
 
-  const values = [customer_name, person_name, email, mobile];
+  const values = [customer_name, person_name, email, mobile, lead_rfq_enquiry_date];
   const result = await pool.query(query, values);
   return result.rows[0];
 };
 
 exports.getCustomers = async (actor, search) => {
   let query = `
-    SELECT id, customer_name, person_name, email, mobile, status, created_at, updated_at
+    SELECT id, customer_name, person_name, email, mobile, lead_rfq_enquiry_date, status, created_at, updated_at
     FROM customer_master
   `;
 
   const values = [];
   const where = [];
 
-  // Only admin can see PENDING/REJECTED.
+  // Non-admin can see APPROVED + PENDING (so they can track pending count).
+  // REJECTED stays admin-only.
   if (!isAdmin(actor)) {
-    where.push(`status = 'APPROVED'`);
+    where.push(`status IN ('APPROVED', 'PENDING')`);
   }
 
   if (search) {
@@ -74,7 +77,7 @@ exports.approveCustomer = async (id, actor) => {
         approved_at = CURRENT_TIMESTAMP,
         updated_at = CURRENT_TIMESTAMP
     WHERE id = $2
-    RETURNING id, customer_name, person_name, email, mobile, status, approved_by, approved_at, created_at, updated_at
+    RETURNING id, customer_name, person_name, email, mobile, lead_rfq_enquiry_date, status, approved_by, approved_at, created_at, updated_at
   `;
 
   const result = await pool.query(query, [actor.id, id]);

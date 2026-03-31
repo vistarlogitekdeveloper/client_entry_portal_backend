@@ -1,5 +1,5 @@
 const pool = require('../../config/db');
-const { isBD } = require('../../utils/role.utils');
+const { isBD, isAdmin } = require('../../utils/role.utils');
 
 exports.getDashboardStats = async (actor, filterMonth, filterYear) => {
   const commonWhere = `
@@ -79,18 +79,27 @@ exports.getDashboardStats = async (actor, filterMonth, filterYear) => {
     ORDER BY month ASC
   `;
 
+  // Admin-only: count customers awaiting approval
+  const pendingCustomerQuery = `
+    SELECT COUNT(*)::INTEGER AS pending_customer_approvals
+    FROM customer_master
+    WHERE status = 'PENDING'
+  `;
+
   const [
     kpiResult,
     leaderboardResult,
     regionResult,
     scopeResult,
-    trendsResult
+    trendsResult,
+    pendingCustomerResult
   ] = await Promise.all([
     pool.query(kpiQuery, commonParams),
     pool.query(leaderboardQuery, commonParams),
     pool.query(regionQuery, commonParams),
     pool.query(scopeQuery, commonParams),
-    pool.query(trendsQuery, monthlyParams)
+    pool.query(trendsQuery, monthlyParams),
+    isAdmin(actor) ? pool.query(pendingCustomerQuery) : Promise.resolve(null)
   ]);
 
   const kpi = kpiResult.rows[0] || {
@@ -149,7 +158,7 @@ exports.getDashboardStats = async (actor, filterMonth, filterYear) => {
     }));
   }
 
-  return {
+  const response = {
     kpi: {
       total_leads: parseInt(kpi.total_leads),
       active_leads: parseInt(kpi.active_leads),
@@ -170,6 +179,15 @@ exports.getDashboardStats = async (actor, filterMonth, filterYear) => {
     business_scope: scopeResult.rows.map(r => ({ ...r, revenue: parseFloat(r.revenue) })),
     monthly_trends: trendsResult.rows.map(r => ({ ...r, revenue: parseFloat(r.revenue) }))
   };
+
+  // Append admin-only alerts
+  if (isAdmin(actor) && pendingCustomerResult) {
+    response.admin_alerts = {
+      pending_customer_approvals: pendingCustomerResult.rows[0]?.pending_customer_approvals ?? 0
+    };
+  }
+
+  return response;
 };
 
 exports.getRegionStats = async (actor) => {

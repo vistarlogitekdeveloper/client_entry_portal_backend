@@ -75,6 +75,7 @@ const initDb = async () => {
         person_name VARCHAR(255) NOT NULL,
         email VARCHAR(255),
         mobile VARCHAR(50),
+        lead_rfq_enquiry_date DATE,
         status VARCHAR(20) DEFAULT 'PENDING' CHECK (status IN ('PENDING', 'APPROVED', 'REJECTED')),
         approved_by UUID REFERENCES users(id) ON DELETE SET NULL,
         approved_at TIMESTAMP,
