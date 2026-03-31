@@ -217,27 +217,186 @@ exports.updateLead = async (id, data, actor) => {
     throw new Error('BD users can only assign leads to themselves');
   }
 
-  let query = `
-    UPDATE lead_master
-    SET ${setParts.join(', ')}
-    WHERE id = $${i}
-  `;
+  // DATE+NUMERIC columns need normalization for correct diffing/logging.
+  const dateOnlyColumns = new Set(['lead_received_date', 'rfq_submission_date', 'projected_month']);
+  const numericColumns = new Set(['projected_value']);
 
-  if (isBD(actor)) {
-    query += ` AND owner = $${i + 1}`;
+  const normalizeForCompare = (column, v) => {
+    if (v === undefined || v === null) return null;
+
+    if (numericColumns.has(column)) {
+      const n = typeof v === 'number' ? v : parseFloat(String(v));
+      return Number.isNaN(n) ? String(v) : String(n);
+    }
+
+    if (dateOnlyColumns.has(column)) {
+      if (typeof v === 'string') {
+        const m = v.trim().match(/^(\d{4}-\d{2}-\d{2})/);
+        if (m) return m[1];
+      }
+      if (v instanceof Date) return v.toISOString().slice(0, 10);
+      const d = new Date(v);
+      return Number.isNaN(d.getTime()) ? String(v) : d.toISOString().slice(0, 10);
+    }
+
+    return String(v);
+  };
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    // Fetch old lead row (with same BD access rules) so we can compute field-level diffs.
+    let selectQuery = `SELECT * FROM lead_master WHERE id = $1`;
+    const selectValues = [id];
+    if (isBD(actor)) {
+      selectQuery += ` AND owner = $2`;
+      selectValues.push(actor.id);
+    }
+
+    const oldLeadRes = await client.query(selectQuery, selectValues);
+    const oldLead = oldLeadRes.rows[0];
+
+    if (!oldLead) {
+      await client.query('ROLLBACK');
+      return null;
+    }
+
+    const fieldChanges = [];
+    for (const [field, column] of Object.entries(allowedFields)) {
+      if (!Object.prototype.hasOwnProperty.call(data, field)) continue;
+
+      const oldNorm = normalizeForCompare(column, oldLead[column]);
+      const newNorm = normalizeForCompare(column, data[field]);
+
+      if (oldNorm !== newNorm) {
+        fieldChanges.push({
+          field_name: column,
+          old_value: oldNorm,
+          new_value: newNorm
+        });
+      }
+    }
+
+    // If the PUT request didn't actually change any field value,
+    // skip both update + audit insert (prevents misleading "updated" history).
+    if (fieldChanges.length === 0) {
+      await client.query('ROLLBACK');
+      return oldLead;
+    }
+
+    // Update lead row.
+    const idParamIndex = i; // i is 1 + numberOfUpdatedFields
+
+    let updateQuery = `
+      UPDATE lead_master
+      SET ${setParts.join(', ')}, updated_at = CURRENT_TIMESTAMP
+      WHERE id = $${idParamIndex}
+    `;
+
+    if (isBD(actor)) {
+      updateQuery += ` AND owner = $${idParamIndex + 1}`;
+    }
+
+    updateQuery += ` RETURNING *;`;
+
+    const updateValues = [...values, id];
+    if (isBD(actor)) {
+      updateValues.push(actor.id);
+    }
+
+    const updatedRes = await client.query(updateQuery, updateValues);
+    const updatedLead = updatedRes.rows[0];
+
+    // Insert audit event + per-field diffs.
+    const changedAt = new Date();
+    const eventRes = await client.query(
+      `INSERT INTO lead_change_events (lead_id, changed_by, changed_at)
+       VALUES ($1, $2, $3)
+       RETURNING id`,
+      [id, actor?.id ?? null, changedAt]
+    );
+    const eventId = eventRes.rows[0]?.id;
+
+    if (eventId) {
+      const fieldValuePlaceholders = [];
+      const fieldValues = [];
+      let p = 1;
+
+      for (const fc of fieldChanges) {
+        fieldValuePlaceholders.push(`($${p++}, $${p++}, $${p++}, $${p++})`);
+        fieldValues.push(eventId, fc.field_name, fc.old_value, fc.new_value);
+      }
+
+      await client.query(
+        `INSERT INTO lead_change_event_fields (event_id, field_name, old_value, new_value)
+         VALUES ${fieldValuePlaceholders.join(', ')}`,
+        fieldValues
+      );
+    }
+
+    await client.query('COMMIT');
+    return updatedLead;
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
   }
+};
 
-  query += `
-    RETURNING *;
-  `;
+// ✅ GET LEAD FIELD CHANGE HISTORY
+exports.getLeadChanges = async (id, actor) => {
+  const values = [id];
+  let ownerFilter = '';
 
-  values.push(id);
   if (isBD(actor)) {
+    ownerFilter = ` AND lm.owner = $2`;
     values.push(actor.id);
   }
 
-  const result = await pool.query(query, values);
-  return result.rows[0];
+  const result = await pool.query(
+    `
+      SELECT
+        e.id AS event_id,
+        e.changed_at,
+        e.changed_by,
+        u.name AS changed_by_name,
+        f.field_name,
+        f.old_value,
+        f.new_value
+      FROM lead_change_events e
+      INNER JOIN lead_master lm ON lm.id = e.lead_id
+      INNER JOIN lead_change_event_fields f ON f.event_id = e.id
+      LEFT JOIN users u ON u.id = e.changed_by
+      WHERE e.lead_id = $1
+        ${ownerFilter}
+      ORDER BY e.changed_at DESC, f.field_name ASC
+    `,
+    values
+  );
+
+  // Group by "event" so UI can show: "At time X user Y changed these fields..."
+  const byEvent = new Map();
+  for (const row of result.rows) {
+    if (!byEvent.has(row.event_id)) {
+      byEvent.set(row.event_id, {
+        event_id: row.event_id,
+        changed_at: row.changed_at,
+        changed_by: row.changed_by,
+        changed_by_name: row.changed_by_name ?? null,
+        fields: []
+      });
+    }
+
+    byEvent.get(row.event_id).fields.push({
+      field_name: row.field_name,
+      old_value: row.old_value,
+      new_value: row.new_value
+    });
+  }
+
+  return Array.from(byEvent.values());
 };
 
 // ✅ DELETE LEADS

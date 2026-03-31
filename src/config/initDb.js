@@ -64,6 +64,32 @@ const initDb = async () => {
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         UNIQUE (week_start_date, lead_id, notified_user_id, reminder_day)
       );
+
+      -- ============================================================
+      -- LEAD FIELD AUDIT (field-level change tracking)
+      -- Each PUT /api/leads/:id creates one "event" row and one row
+      -- per changed field so UI can show who changed what and when.
+      -- ============================================================
+      CREATE TABLE IF NOT EXISTS lead_change_events (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        lead_id UUID NOT NULL REFERENCES lead_master(id) ON DELETE CASCADE,
+        changed_by UUID REFERENCES users(id) ON DELETE SET NULL,
+        changed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+
+      CREATE TABLE IF NOT EXISTS lead_change_event_fields (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        event_id UUID NOT NULL REFERENCES lead_change_events(id) ON DELETE CASCADE,
+        field_name VARCHAR(255) NOT NULL,
+        old_value TEXT,
+        new_value TEXT
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_lead_change_events_lead_id_changed_at
+        ON lead_change_events (lead_id, changed_at DESC);
+
+      CREATE INDEX IF NOT EXISTS idx_lead_change_event_fields_event_id
+        ON lead_change_event_fields (event_id);
     `);
 
     console.log('✅ Database tables initialized');

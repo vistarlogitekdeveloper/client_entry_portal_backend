@@ -68,6 +68,33 @@ CREATE TABLE IF NOT EXISTS lead_review_reminders (
 );
 
 -- ============================================================
+-- LEAD FIELD AUDIT (field-level change tracking)
+-- ============================================================
+-- Each PUT /api/leads/:id writes:
+-- 1) one row to lead_change_events (who/when)
+-- 2) one row per changed field to lead_change_event_fields (what)
+CREATE TABLE IF NOT EXISTS lead_change_events (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    lead_id UUID NOT NULL REFERENCES lead_master(id) ON DELETE CASCADE,
+    changed_by UUID REFERENCES users(id) ON DELETE SET NULL,
+    changed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS lead_change_event_fields (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    event_id UUID NOT NULL REFERENCES lead_change_events(id) ON DELETE CASCADE,
+    field_name VARCHAR(255) NOT NULL,
+    old_value TEXT,
+    new_value TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_lead_change_events_lead_id_changed_at
+    ON lead_change_events (lead_id, changed_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_lead_change_event_fields_event_id
+    ON lead_change_event_fields (event_id);
+
+-- ============================================================
 -- SEED: Default Admin User
 -- Password: Admin@123  (bcrypt hashed)
 -- Change this password after first login!

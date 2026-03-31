@@ -60,6 +60,16 @@ exports.update = async (req, res) => {
   }
 };
 
+// ✅ GET LEAD FIELD CHANGE HISTORY
+exports.getChanges = async (req, res) => {
+  try {
+    const changes = await service.getLeadChanges(req.params.id, req.user);
+    res.json({ success: true, data: changes });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
 // ✅ DELETE
 exports.deleteLead = async (req, res) => {
   try {

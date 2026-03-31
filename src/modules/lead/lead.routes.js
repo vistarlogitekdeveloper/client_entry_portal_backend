@@ -7,6 +7,7 @@ const roleMiddleware = require('../../middleware/role.middleware');
 router.get('/', authMiddleware, controller.getAll);
 router.get('/customers/names', authMiddleware, controller.getUniqueCustomerNames);
 router.get('/:id', authMiddleware, controller.getById);
+router.get('/:id/changes', authMiddleware, controller.getChanges);
 router.post('/', authMiddleware, controller.create);
 router.put('/:id', authMiddleware, controller.update);
 router.delete('/:id', authMiddleware, roleMiddleware(['ADMIN']), controller.deleteLead);
