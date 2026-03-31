@@ -114,6 +114,8 @@ exports.getDashboardStats = async (actor, filterMonth, filterYear) => {
 
   leaderboard.sort((a, b) => b.total_value - a.total_value);
 
+  const TOP_N = 3;
+
   let best_conversion = null;
   let highest_revenue = null;
   let most_leads = null;
@@ -124,10 +126,27 @@ exports.getDashboardStats = async (actor, filterMonth, filterYear) => {
     const sortedByLeads = [...leaderboard].sort((a, b) => b.total_leads - a.total_leads);
     const sortedByRevenue = [...leaderboard].sort((a, b) => b.total_value - a.total_value);
 
-    best_conversion = { bd_name: sortedByConversion[0].bd_name, conversion_rate: sortedByConversion[0].conversion_rate };
-    highest_revenue = { bd_name: sortedByRevenue[0].bd_name, total_value: sortedByRevenue[0].total_value };
-    most_leads = { bd_name: sortedByLeads[0].bd_name, total_leads: sortedByLeads[0].total_leads };
-    best_overall = { bd_name: sortedByRevenue[0].bd_name, reason: "Highest overall pipeline revenue" };
+    best_conversion = sortedByConversion.slice(0, TOP_N).map(p => ({
+      bd_name: p.bd_name,
+      conversion_rate: p.conversion_rate
+    }));
+
+    highest_revenue = sortedByRevenue.slice(0, TOP_N).map(p => ({
+      bd_name: p.bd_name,
+      total_value: p.total_value
+    }));
+
+    most_leads = sortedByLeads.slice(0, TOP_N).map(p => ({
+      bd_name: p.bd_name,
+      total_leads: p.total_leads
+    }));
+
+    // "Top performers" / best overall = top 3 by total pipeline revenue.
+    best_overall = sortedByRevenue.slice(0, TOP_N).map(p => ({
+      bd_name: p.bd_name,
+      total_value: p.total_value,
+      reason: "Highest overall pipeline revenue"
+    }));
   }
 
   return {
