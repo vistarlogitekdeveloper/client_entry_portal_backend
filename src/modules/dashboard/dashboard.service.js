@@ -1,5 +1,4 @@
 const pool = require('../../config/db');
-const { isBD } = require('../../utils/role.utils');
 
 exports.getDashboardStats = async (actor, filterMonth, filterYear) => {
   const commonWhere = `
@@ -7,12 +6,7 @@ exports.getDashboardStats = async (actor, filterMonth, filterYear) => {
       AND EXTRACT(YEAR FROM created_at) = $2
   `;
   const commonParams = [filterMonth, filterYear];
-  
-  let actorWhere = '';
-  if (isBD(actor)) {
-    actorWhere = ` AND owner = $3`;
-    commonParams.push(actor.id);
-  }
+  const actorWhere = ''; // No role-based filtering — all users see full data
 
   const kpiQuery = `
     SELECT
@@ -25,24 +19,7 @@ exports.getDashboardStats = async (actor, filterMonth, filterYear) => {
     ${commonWhere} ${actorWhere}
   `;
 
-  const leaderboardQuery = isBD(actor)
-    ? `
-      SELECT
-        u.name AS bd_name,
-        u.role,
-        COUNT(lm.id)::INTEGER AS total_leads,
-        COUNT(lm.id) FILTER (WHERE lm.final_status = 'WON')::INTEGER AS won_leads,
-        COALESCE(SUM(lm.projected_value), 0)::NUMERIC AS total_value
-      FROM users u
-      LEFT JOIN lead_master lm
-        ON lm.owner = u.id
-        AND EXTRACT(MONTH FROM lm.created_at) = $1
-        AND EXTRACT(YEAR FROM lm.created_at) = $2
-      WHERE u.id = $3
-      GROUP BY u.id, u.name, u.role
-      ORDER BY total_value DESC
-    `
-    : `
+  const leaderboardQuery = `
       SELECT
         u.name AS bd_name,
         u.role,
@@ -83,11 +60,7 @@ exports.getDashboardStats = async (actor, filterMonth, filterYear) => {
 
   const monthlyWhere = `WHERE EXTRACT(YEAR FROM created_at) = $1`;
   const monthlyParams = [filterYear];
-  let monthlyActorWhere = '';
-  if (isBD(actor)) {
-    monthlyActorWhere = ` AND owner = $2`;
-    monthlyParams.push(actor.id);
-  }
+  const monthlyActorWhere = ''; // No role-based filtering
 
   const trendsQuery = `
     SELECT
@@ -101,9 +74,7 @@ exports.getDashboardStats = async (actor, filterMonth, filterYear) => {
     ORDER BY month ASC
   `;
 
-  // Build separate params for leaderboardQuery (always $1=month, $2=year, optionally $3=actor.id)
   const leaderboardParams = [filterMonth, filterYear];
-  if (isBD(actor)) leaderboardParams.push(actor.id);
 
   const [
     kpiResult,
