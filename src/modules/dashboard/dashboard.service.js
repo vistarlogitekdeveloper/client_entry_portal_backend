@@ -1,5 +1,5 @@
 const pool = require('../../config/db');
-const { isBD, isAdmin } = require('../../utils/role.utils');
+const { isBD } = require('../../utils/role.utils');
 
 exports.getDashboardStats = async (actor, filterMonth, filterYear) => {
   const commonWhere = `
@@ -25,17 +25,39 @@ exports.getDashboardStats = async (actor, filterMonth, filterYear) => {
     ${commonWhere} ${actorWhere}
   `;
 
-  const leaderboardQuery = `
-    SELECT
-      u.name AS bd_name,
-      COUNT(lm.id)::INTEGER AS total_leads,
-      COUNT(lm.id) FILTER (WHERE lm.final_status = 'WON')::INTEGER AS won_leads,
-      COALESCE(SUM(lm.projected_value), 0)::NUMERIC AS total_value
-    FROM lead_master lm
-    JOIN users u ON lm.owner = u.id
-    ${commonWhere.replace(/created_at/g, 'lm.created_at')} ${actorWhere.replace(/owner/g, 'lm.owner')}
-    GROUP BY u.id, u.name
-  `;
+  const leaderboardQuery = isBD(actor)
+    ? `
+      SELECT
+        u.name AS bd_name,
+        u.role,
+        COUNT(lm.id)::INTEGER AS total_leads,
+        COUNT(lm.id) FILTER (WHERE lm.final_status = 'WON')::INTEGER AS won_leads,
+        COALESCE(SUM(lm.projected_value), 0)::NUMERIC AS total_value
+      FROM users u
+      LEFT JOIN lead_master lm
+        ON lm.owner = u.id
+        AND EXTRACT(MONTH FROM lm.created_at) = $1
+        AND EXTRACT(YEAR FROM lm.created_at) = $2
+      WHERE u.id = $3
+      GROUP BY u.id, u.name, u.role
+      ORDER BY total_value DESC
+    `
+    : `
+      SELECT
+        u.name AS bd_name,
+        u.role,
+        COUNT(lm.id)::INTEGER AS total_leads,
+        COUNT(lm.id) FILTER (WHERE lm.final_status = 'WON')::INTEGER AS won_leads,
+        COALESCE(SUM(lm.projected_value), 0)::NUMERIC AS total_value
+      FROM users u
+      LEFT JOIN lead_master lm
+        ON lm.owner = u.id
+        AND EXTRACT(MONTH FROM lm.created_at) = $1
+        AND EXTRACT(YEAR FROM lm.created_at) = $2
+      WHERE u.role IN ('BD', 'MANAGER')
+      GROUP BY u.id, u.name, u.role
+      ORDER BY total_value DESC
+    `;
 
   const regionQuery = `
     SELECT
@@ -79,27 +101,22 @@ exports.getDashboardStats = async (actor, filterMonth, filterYear) => {
     ORDER BY month ASC
   `;
 
-  // Admin-only: count customers awaiting approval
-  const pendingCustomerQuery = `
-    SELECT COUNT(*)::INTEGER AS pending_customer_approvals
-    FROM customer_master
-    WHERE status = 'PENDING'
-  `;
+  // Build separate params for leaderboardQuery (always $1=month, $2=year, optionally $3=actor.id)
+  const leaderboardParams = [filterMonth, filterYear];
+  if (isBD(actor)) leaderboardParams.push(actor.id);
 
   const [
     kpiResult,
     leaderboardResult,
     regionResult,
     scopeResult,
-    trendsResult,
-    pendingCustomerResult
+    trendsResult
   ] = await Promise.all([
     pool.query(kpiQuery, commonParams),
-    pool.query(leaderboardQuery, commonParams),
+    pool.query(leaderboardQuery, leaderboardParams),
     pool.query(regionQuery, commonParams),
     pool.query(scopeQuery, commonParams),
-    pool.query(trendsQuery, monthlyParams),
-    isAdmin(actor) ? pool.query(pendingCustomerQuery) : Promise.resolve(null)
+    pool.query(trendsQuery, monthlyParams)
   ]);
 
   const kpi = kpiResult.rows[0] || {
@@ -114,6 +131,7 @@ exports.getDashboardStats = async (actor, filterMonth, filterYear) => {
 
   const leaderboard = leaderboardResult.rows.map(row => ({
     bd_name: row.bd_name,
+    role: row.role,
     total_leads: row.total_leads,
     won_leads: row.won_leads,
     total_value: parseFloat(row.total_value),
@@ -158,7 +176,7 @@ exports.getDashboardStats = async (actor, filterMonth, filterYear) => {
     }));
   }
 
-  const response = {
+  return {
     kpi: {
       total_leads: parseInt(kpi.total_leads),
       active_leads: parseInt(kpi.active_leads),
@@ -179,15 +197,6 @@ exports.getDashboardStats = async (actor, filterMonth, filterYear) => {
     business_scope: scopeResult.rows.map(r => ({ ...r, revenue: parseFloat(r.revenue) })),
     monthly_trends: trendsResult.rows.map(r => ({ ...r, revenue: parseFloat(r.revenue) }))
   };
-
-  // Append admin-only alerts
-  if (isAdmin(actor) && pendingCustomerResult) {
-    response.admin_alerts = {
-      pending_customer_approvals: pendingCustomerResult.rows[0]?.pending_customer_approvals ?? 0
-    };
-  }
-
-  return response;
 };
 
 exports.getRegionStats = async (actor) => {
