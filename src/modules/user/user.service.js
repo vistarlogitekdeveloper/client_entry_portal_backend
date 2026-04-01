@@ -3,11 +3,11 @@ const pool = require('../../config/db');
 const bcrypt = require('bcrypt');
 
 exports.getUsers = async (search) => {
-  const values = ['BD', 'MANAGER'];
+  const values = ['BD', 'MANAGER', 'ADMIN'];
   let query = `
     SELECT id, name
     FROM users
-    WHERE role IN ($1, $2)
+    WHERE role IN ($1, $2, $3)
   `;
 
   if (search) {

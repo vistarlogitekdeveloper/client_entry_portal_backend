@@ -8,13 +8,17 @@ const requireNonEmptyString = (value, field) => {
   return value.trim();
 };
 
-exports.createCustomer = async (data) => {
-  const customer_name = requireNonEmptyString(data.customer_name, 'customer_name').toUpperCase();
+exports.createCustomer = async (data, actor) => {
+  const customer_name = requireNonEmptyString(data.customer_name, 'customer_name');
   const person_name = requireNonEmptyString(data.person_name, 'person_name');
 
   const email = data.email ? String(data.email).trim() : null;
   const mobile = data.mobile ? String(data.mobile).trim() : null;
   const lead_rfq_enquiry_date = data.lead_rfq_enquiry_date ?? data.received_created_date ?? null;
+
+  const isAdminUser = actor && isAdmin(actor);
+  const status = isAdminUser ? 'APPROVED' : 'PENDING';
+  const approved_by = isAdminUser ? actor.id : null;
 
   const query = `
     INSERT INTO customer_master (
@@ -23,13 +27,15 @@ exports.createCustomer = async (data) => {
       email,
       mobile,
       lead_rfq_enquiry_date,
-      status
+      status,
+      approved_by,
+      approved_at
     )
-    VALUES ($1, $2, $3, $4, $5, 'PENDING')
+    VALUES ($1, $2, $3, $4, $5, $6, $7, ${isAdminUser ? 'CURRENT_TIMESTAMP' : 'NULL'})
     RETURNING id, customer_name, person_name, email, mobile, lead_rfq_enquiry_date, status, approved_by, approved_at, created_at, updated_at
   `;
 
-  const values = [customer_name, person_name, email, mobile, lead_rfq_enquiry_date];
+  const values = [customer_name, person_name, email, mobile, lead_rfq_enquiry_date, status, approved_by];
   const result = await pool.query(query, values);
   return result.rows[0];
 };
