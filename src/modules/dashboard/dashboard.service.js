@@ -2,8 +2,8 @@ const pool = require('../../config/db');
 
 exports.getDashboardStats = async (actor, filterMonth, filterYear) => {
   const commonWhere = `
-    WHERE EXTRACT(MONTH FROM created_at) = $1 
-      AND EXTRACT(YEAR FROM created_at) = $2
+    WHERE EXTRACT(MONTH FROM COALESCE(lead_received_date, created_at::date)) = $1 
+      AND EXTRACT(YEAR FROM COALESCE(lead_received_date, created_at::date)) = $2
   `;
   const commonParams = [filterMonth, filterYear];
   const actorWhere = ''; // No role-based filtering — all users see full data
@@ -31,9 +31,9 @@ exports.getDashboardStats = async (actor, filterMonth, filterYear) => {
       FROM users u
       LEFT JOIN lead_master lm
         ON lm.owner = u.id
-        AND EXTRACT(MONTH FROM lm.created_at) = $1
-        AND EXTRACT(YEAR FROM lm.created_at) = $2
-      WHERE u.role IN ('BD', 'MANAGER')
+        AND EXTRACT(MONTH FROM COALESCE(lm.lead_received_date, lm.created_at::date)) = $1
+        AND EXTRACT(YEAR FROM COALESCE(lm.lead_received_date, lm.created_at::date)) = $2
+      WHERE u.role IN ('BD', 'MANAGER', 'ADMIN')
       GROUP BY u.id, u.name, u.role
       ORDER BY total_value DESC
     `;
@@ -60,19 +60,19 @@ exports.getDashboardStats = async (actor, filterMonth, filterYear) => {
     ORDER BY total_leads DESC
   `;
 
-  const monthlyWhere = `WHERE EXTRACT(YEAR FROM created_at) = $1`;
+  const monthlyWhere = `WHERE EXTRACT(YEAR FROM COALESCE(lead_received_date, created_at::date)) = $1`;
   const monthlyParams = [filterYear];
   const monthlyActorWhere = ''; // No role-based filtering
 
   const trendsQuery = `
     SELECT
-      TO_CHAR(created_at, 'YYYY-MM') AS month,
+      TO_CHAR(COALESCE(lead_received_date, created_at::date), 'YYYY-MM') AS month,
       COUNT(*)::INTEGER AS total_leads,
       COUNT(*) FILTER (WHERE final_status = 'WON')::INTEGER AS won_leads,
       COALESCE(SUM(projected_value), 0)::NUMERIC AS revenue
     FROM lead_master
     ${monthlyWhere} ${monthlyActorWhere}
-    GROUP BY TO_CHAR(created_at, 'YYYY-MM')
+    GROUP BY TO_CHAR(COALESCE(lead_received_date, created_at::date), 'YYYY-MM')
     ORDER BY month ASC
   `;
 
