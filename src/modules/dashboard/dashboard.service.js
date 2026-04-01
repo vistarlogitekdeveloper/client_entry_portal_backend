@@ -21,11 +21,13 @@ exports.getDashboardStats = async (actor, filterMonth, filterYear) => {
 
   const leaderboardQuery = `
       SELECT
+        u.id AS user_id,
         u.name AS bd_name,
         u.role,
         COUNT(lm.id)::INTEGER AS total_leads,
         COUNT(lm.id) FILTER (WHERE lm.final_status = 'WON')::INTEGER AS won_leads,
-        COALESCE(SUM(lm.projected_value), 0)::NUMERIC AS total_value
+        COALESCE(SUM(lm.projected_value), 0)::NUMERIC AS total_value,
+        (SELECT COUNT(*)::INTEGER FROM lead_review_reminders r WHERE r.notified_user_id = u.id AND r.status = 'PENDING') AS pending_updates
       FROM users u
       LEFT JOIN lead_master lm
         ON lm.owner = u.id
@@ -107,7 +109,8 @@ exports.getDashboardStats = async (actor, filterMonth, filterYear) => {
     won_leads: row.won_leads,
     total_value: parseFloat(row.total_value),
     conversion_rate: row.total_leads > 0 
-      ? parseFloat(((row.won_leads / row.total_leads) * 100).toFixed(2)) : 0
+      ? parseFloat(((row.won_leads / row.total_leads) * 100).toFixed(2)) : 0,
+    pending_updates: row.pending_updates
   }));
 
   leaderboard.sort((a, b) => b.total_value - a.total_value);

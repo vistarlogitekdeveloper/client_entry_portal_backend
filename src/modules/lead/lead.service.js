@@ -105,10 +105,8 @@ exports.getLeads = async (filters, actor) => {
   let values = [];
   let i = 1;
 
-  if (isBD(actor)) {
-    query += ` AND owner = $${i++}`;
-    values.push(actor.id);
-  }
+  // REMOVED owner filtering: BDs and all users can now see ALL leads.
+
 
   if (filters.region) {
     query += ` AND region = $${i++}`;
