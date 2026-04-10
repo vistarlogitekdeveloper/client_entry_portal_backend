@@ -10,15 +10,21 @@ const { messaging } = require('../config/firebase');
 async function sendPushNotification(token, title, body, data = {}) {
   if (!token) return;
 
+  // Ensure all data values are strings for FCM
+  const stringData = {};
+  Object.keys(data).forEach(key => {
+    stringData[key] = String(data[key]);
+  });
+
+  // Add standard click action for Flutter
+  stringData.click_action = 'FLUTTER_NOTIFICATION_CLICK';
+
   const message = {
     notification: {
       title,
       body,
     },
-    data: {
-      ...data,
-      click_action: 'FLUTTER_NOTIFICATION_CLICK', // Required for older Flutter FCM versions
-    },
+    data: stringData,
     token,
   };
 
@@ -47,12 +53,21 @@ async function sendMulticastNotification(tokens, title, body, data = {}) {
   const validTokens = tokens.filter(t => t && t.trim() !== '');
   if (validTokens.length === 0) return;
 
+  // Ensure all data values are strings for FCM
+  const stringData = {};
+  Object.keys(data).forEach(key => {
+    stringData[key] = String(data[key]);
+  });
+
+  // Add standard click action for Flutter
+  stringData.click_action = 'FLUTTER_NOTIFICATION_CLICK';
+
   const message = {
     notification: {
       title,
       body,
     },
-    data,
+    data: stringData,
     tokens: validTokens,
   };
 
