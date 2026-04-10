@@ -63,3 +63,16 @@ exports.deleteUser = async (req, res) => {
     res.status(500).json({ success: false, message: err.message });
   }
 };
+
+exports.registerFcmToken = async (req, res) => {
+  try {
+    const { token } = req.body;
+    if (!token) {
+      return res.status(400).json({ success: false, message: 'FCM token is required' });
+    }
+    const user = await service.updateFcmToken(req.user.id, token);
+    res.json({ success: true, data: user, message: 'FCM token registered successfully' });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};

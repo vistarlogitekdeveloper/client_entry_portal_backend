@@ -13,4 +13,7 @@ router.post('/', authMiddleware, roleMiddleware(['ADMIN']), controller.createUse
 router.put('/:id', authMiddleware, roleMiddleware(['ADMIN']), controller.updateUser);
 router.delete('/:id', authMiddleware, roleMiddleware(['ADMIN']), controller.deleteUser);
 
+// Register FCM Token (Current User)
+router.post('/fcm-token', authMiddleware, controller.registerFcmToken);
+
 module.exports = router;

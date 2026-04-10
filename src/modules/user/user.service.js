@@ -97,3 +97,47 @@ exports.deleteUser = async (id) => {
   const result = await pool.query(query, [id]);
   return result.rows[0];
 };
+
+exports.findOne = async (id) => {
+  const query = `SELECT id, name, email, role, fcm_token FROM users WHERE id = $1`;
+  const result = await pool.query(query, [id]);
+  return result.rows[0];
+};
+
+exports.updateFcmToken = async (userId, token) => {
+  const query = `
+    UPDATE users
+    SET fcm_token = $1
+    WHERE id = $2
+    RETURNING id, name, email, fcm_token;
+  `;
+  const result = await pool.query(query, [token, userId]);
+  return result.rows[0];
+};
+
+exports.getAdminManagerTokens = async () => {
+  const query = `
+    SELECT fcm_token
+    FROM users
+    WHERE role IN ('ADMIN', 'MANAGER')
+      AND fcm_token IS NOT NULL
+      AND fcm_token <> ''
+  `;
+  const result = await pool.query(query);
+  return result.rows.map(r => r.fcm_token);
+};
+
+exports.getUserTokens = async (userIds) => {
+  if (!userIds || userIds.length === 0) return [];
+  
+  const placeholders = userIds.map((_, i) => `$${i + 1}`).join(', ');
+  const query = `
+    SELECT fcm_token
+    FROM users
+    WHERE id IN (${placeholders})
+      AND fcm_token IS NOT NULL
+      AND fcm_token <> ''
+  `;
+  const result = await pool.query(query, userIds);
+  return result.rows.map(r => r.fcm_token);
+};

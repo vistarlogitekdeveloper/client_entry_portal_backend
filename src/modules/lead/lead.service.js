@@ -1,5 +1,7 @@
 const pool = require('../../config/db');
 const { isBD } = require('../../utils/role.utils');
+const userService = require('../user/user.service');
+const { sendMulticastNotification, sendPushNotification } = require('../../utils/notification.utils');
 
 // Monday (start) week_start_date in LOCAL time.
 const getWeekStartDate = (dateInput) => {
@@ -94,6 +96,31 @@ exports.createLead = async (data, actor) => {
       // Don't block lead creation if owner type doesn't match notified_user_id type.
       console.error('Reminder insert failed:', err.message);
     }
+  }
+
+  // Push Notifications for ADMIN/MANAGER, Owner, and Creator on new lead
+  try {
+    const notifyUserIds = [];
+    if (lead.owner) notifyUserIds.push(lead.owner);
+    if (lead.lead_by) notifyUserIds.push(lead.lead_by);
+
+    const [adminTokens, otherTokens] = await Promise.all([
+      userService.getAdminManagerTokens(),
+      userService.getUserTokens(notifyUserIds)
+    ]);
+
+    const allTokens = [...new Set([...adminTokens, ...otherTokens])];
+
+    if (allTokens.length > 0) {
+      await sendMulticastNotification(
+        allTokens,
+        'New Lead Created',
+        `A new lead for "${lead.company_name}" has been created.`,
+        { lead_id: lead.id, type: 'NEW_LEAD' }
+      );
+    }
+  } catch (err) {
+    console.error('Failed to send new lead notifications:', err.message);
   }
 
   return lead;
@@ -334,6 +361,35 @@ exports.updateLead = async (id, data, actor) => {
     }
 
     await client.query('COMMIT');
+
+    // Push Notifications for Owner, Creator, and Admins if status changed
+    const statusChange = fieldChanges.find(f => f.field_name === 'status');
+    if (statusChange) {
+      try {
+        const notifyUserIds = [];
+        if (updatedLead.owner) notifyUserIds.push(updatedLead.owner);
+        if (updatedLead.lead_by) notifyUserIds.push(updatedLead.lead_by);
+
+        const [adminTokens, otherTokens] = await Promise.all([
+          userService.getAdminManagerTokens(),
+          userService.getUserTokens(notifyUserIds)
+        ]);
+
+        const allTokens = [...new Set([...adminTokens, ...otherTokens])];
+
+        if (allTokens.length > 0) {
+          await sendMulticastNotification(
+            allTokens,
+            'Lead Status Updated',
+            `Lead "${updatedLead.company_name}" status has been changed to ${updatedLead.status}.`,
+            { lead_id: updatedLead.id, type: 'STATUS_CHANGE' }
+          );
+        }
+      } catch (err) {
+        console.error('Failed to send status update notification:', err.message);
+      }
+    }
+
     return updatedLead;
   } catch (err) {
     await client.query('ROLLBACK');

@@ -1,4 +1,6 @@
 const pool = require('../config/db');
+const userService = require('../modules/user/user.service');
+const { sendPushNotification } = require('../utils/notification.utils');
 
 const getWeekStartDate = (dateInput) => {
   const d = new Date(dateInput);
@@ -59,11 +61,50 @@ const runWeeklyReminderJob = async () => {
     ON CONFLICT (week_start_date, lead_id, notified_user_id, reminder_day)
     DO UPDATE SET
       status = 'PENDING',
-      sent_at = NULL;
+      sent_at = NULL
+    RETURNING notified_user_id, lead_id;
   `;
 
   const result = await pool.query(insertSql, [weekStartDate]);
-  return { weekStartDate, rowCount: result.rowCount };
+  const rows = result.rows;
+
+  if (rows.length > 0) {
+    // Group leads by owner to send a single notification summarizing their pending items
+    const userLeadsMap = {};
+    rows.forEach(row => {
+      if (!userLeadsMap[row.notified_user_id]) {
+        userLeadsMap[row.notified_user_id] = [];
+      }
+      userLeadsMap[row.notified_user_id].push(row.lead_id);
+    });
+
+    for (const userId of Object.keys(userLeadsMap)) {
+      try {
+        const user = await userService.findOne(userId);
+        if (user && user.fcm_token) {
+          const count = userLeadsMap[userId].length;
+          await sendPushNotification(
+            user.fcm_token,
+            'Weekly Lead Review Reminder',
+            `You have ${count} lead${count > 1 ? 's' : ''} pending review for this week. Please update them.`,
+            { type: 'WEEKLY_REMINDER', week_start_date: weekStartDate }
+          );
+
+          // Update sent_at for these reminders
+          await pool.query(
+            `UPDATE lead_review_reminders 
+             SET sent_at = CURRENT_TIMESTAMP 
+             WHERE week_start_date = $1 AND notified_user_id = $2`,
+            [weekStartDate, userId]
+          );
+        }
+      } catch (err) {
+        console.error(`Failed to send weekly reminder to user ${userId}:`, err.message);
+      }
+    }
+  }
+
+  return { weekStartDate, rowCount: rows.length };
 };
 
 const startWeeklyReminderScheduler = () => {

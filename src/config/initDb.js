@@ -12,8 +12,12 @@ const initDb = async () => {
         password VARCHAR(255) NOT NULL,
         role VARCHAR(50) NOT NULL CHECK (role IN ('ADMIN', 'MANAGER', 'BD')),
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        fcm_token TEXT
       );
+
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS fcm_token TEXT;
+
 
       CREATE TABLE IF NOT EXISTS lead_master (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
