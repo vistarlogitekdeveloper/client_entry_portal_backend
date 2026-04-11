@@ -33,9 +33,15 @@ exports.approve = async (req, res) => {
 
 exports.toggleActive = async (req, res) => {
   try {
-    const { isActive } = req.body;
-    if (typeof isActive !== 'boolean') {
-      return res.status(400).json({ success: false, message: 'isActive (boolean) is required' });
+    let { isActive } = req.body;
+
+    // Support string booleans from client
+    if (isActive === 'true') isActive = true;
+    if (isActive === 'false') isActive = false;
+
+    // Validate if provided
+    if (isActive !== undefined && typeof isActive !== 'boolean') {
+      return res.status(400).json({ success: false, message: 'isActive must be a boolean or "true"/"false"' });
     }
 
     const customer = await service.toggleCustomerActive(req.params.id, isActive, req.user);

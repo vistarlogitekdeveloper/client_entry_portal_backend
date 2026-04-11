@@ -11,11 +11,11 @@ router.post('/', authMiddleware, controller.create);
 // Get customers (supports optional `search` query)
 router.get('/', authMiddleware, controller.getAll);
 
-// Approve customer (ADMIN only)
-router.post('/:id/approve', authMiddleware, roleMiddleware(['ADMIN']), controller.approve);
+// Approve customer (ADMIN and HEAD OFFICE)
+router.post('/:id/approve', authMiddleware, roleMiddleware(['ADMIN', 'HEAD OFFICE']), controller.approve);
 
-// Toggle active status (ADMIN only)
-router.put('/:id/toggle-active', authMiddleware, roleMiddleware(['ADMIN']), controller.toggleActive);
+// Toggle active status (ADMIN and HEAD OFFICE)
+router.put('/:id/toggle-active', authMiddleware, roleMiddleware(['ADMIN', 'HEAD OFFICE']), controller.toggleActive);
 
 module.exports = router;
 

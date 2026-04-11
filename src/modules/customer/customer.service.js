@@ -1,5 +1,5 @@
 const pool = require('../../config/db');
-const { isAdmin } = require('../../utils/role.utils');
+const { isAdmin, isHeadOffice } = require('../../utils/role.utils');
 
 const requireNonEmptyString = (value, field) => {
   if (typeof value !== 'string' || value.trim() === '') {
@@ -73,8 +73,8 @@ exports.getCustomers = async (actor, search) => {
 };
 
 exports.approveCustomer = async (id, actor) => {
-  if (!isAdmin(actor)) {
-    throw new Error('Only admin can approve customers');
+  if (!isAdmin(actor) && !isHeadOffice(actor)) {
+    throw new Error('Only Admin or Head Office can approve customers');
   }
 
   const query = `
@@ -94,18 +94,18 @@ exports.approveCustomer = async (id, actor) => {
 
 
 exports.toggleCustomerActive = async (id, isActive, actor) => {
-  if (!isAdmin(actor)) {
-    throw new Error('Only admin can toggle customer status');
+  if (!isAdmin(actor) && !isHeadOffice(actor)) {
+    throw new Error('Only Admin or Head Office can toggle customer status');
   }
 
   const query = `
     UPDATE customer_master
-    SET is_active = $1,
+    SET is_active = CASE WHEN $1::boolean IS NULL THEN NOT is_active ELSE $1::boolean END,
         updated_at = CURRENT_TIMESTAMP
     WHERE id = $2
     RETURNING id, customer_name, person_name, email, mobile, lead_rfq_enquiry_date, status, approved_by, approved_at, is_active, created_at, updated_at;
   `;
 
-  const result = await pool.query(query, [isActive, id]);
+  const result = await pool.query(query, [isActive === undefined ? null : isActive, id]);
   return result.rows[0] || null;
 };
