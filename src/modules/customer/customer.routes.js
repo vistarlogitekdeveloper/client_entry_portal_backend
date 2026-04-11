@@ -14,5 +14,8 @@ router.get('/', authMiddleware, controller.getAll);
 // Approve customer (ADMIN only)
 router.post('/:id/approve', authMiddleware, roleMiddleware(['ADMIN']), controller.approve);
 
+// Toggle active status (ADMIN only)
+router.put('/:id/toggle-active', authMiddleware, roleMiddleware(['ADMIN']), controller.toggleActive);
+
 module.exports = router;
 

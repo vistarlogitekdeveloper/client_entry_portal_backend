@@ -10,13 +10,26 @@ const initDb = async () => {
         name VARCHAR(255) NOT NULL,
         email VARCHAR(255) UNIQUE NOT NULL,
         password VARCHAR(255) NOT NULL,
-        role VARCHAR(50) NOT NULL CHECK (role IN ('ADMIN', 'MANAGER', 'BD')),
+        role VARCHAR(50) NOT NULL CHECK (role IN ('ADMIN', 'MANAGER', 'BD', 'HEAD OFFICE')),
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         fcm_token TEXT
       );
 
       ALTER TABLE users ADD COLUMN IF NOT EXISTS fcm_token TEXT;
+
+      -- Update role constraint for existing table
+      DO $$ 
+      BEGIN 
+        IF EXISTS (SELECT 1 FROM information_schema.table_constraints WHERE constraint_name = 'users_role_check') THEN
+          ALTER TABLE users DROP CONSTRAINT users_role_check;
+        END IF;
+        ALTER TABLE users ADD CONSTRAINT users_role_check CHECK (role IN ('ADMIN', 'MANAGER', 'BD', 'HEAD OFFICE'));
+      EXCEPTION
+        WHEN others THEN
+          -- Fallback if the constraint name is different or other issues
+          RAISE NOTICE 'Could not update users_role_check constraint: %', SQLERRM;
+      END $$;
 
 
       CREATE TABLE IF NOT EXISTS lead_master (
@@ -83,9 +96,12 @@ const initDb = async () => {
         status VARCHAR(20) DEFAULT 'PENDING' CHECK (status IN ('PENDING', 'APPROVED', 'REJECTED')),
         approved_by UUID REFERENCES users(id) ON DELETE SET NULL,
         approved_at TIMESTAMP,
+        is_active BOOLEAN DEFAULT TRUE,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
+
+      ALTER TABLE customer_master ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE;
 
       -- ============================================================
       -- LEAD FIELD AUDIT (field-level change tracking)

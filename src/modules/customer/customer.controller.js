@@ -30,3 +30,20 @@ exports.approve = async (req, res) => {
   }
 };
 
+
+exports.toggleActive = async (req, res) => {
+  try {
+    const { isActive } = req.body;
+    if (typeof isActive !== 'boolean') {
+      return res.status(400).json({ success: false, message: 'isActive (boolean) is required' });
+    }
+
+    const customer = await service.toggleCustomerActive(req.params.id, isActive, req.user);
+    if (!customer) {
+      return res.status(404).json({ success: false, message: 'Customer not found' });
+    }
+    res.json({ success: true, data: customer });
+  } catch (err) {
+    res.status(400).json({ success: false, message: err.message });
+  }
+};

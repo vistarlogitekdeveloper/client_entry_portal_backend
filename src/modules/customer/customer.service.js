@@ -29,10 +29,11 @@ exports.createCustomer = async (data, actor) => {
       lead_rfq_enquiry_date,
       status,
       approved_by,
-      approved_at
+      approved_at,
+      is_active
     )
-    VALUES ($1, $2, $3, $4, $5, $6, $7, ${isAdminUser ? 'CURRENT_TIMESTAMP' : 'NULL'})
-    RETURNING id, customer_name, person_name, email, mobile, lead_rfq_enquiry_date, status, approved_by, approved_at, created_at, updated_at
+    VALUES ($1, $2, $3, $4, $5, $6, $7, ${isAdminUser ? 'CURRENT_TIMESTAMP' : 'NULL'}, TRUE)
+    RETURNING id, customer_name, person_name, email, mobile, lead_rfq_enquiry_date, status, approved_by, approved_at, is_active, created_at, updated_at
   `;
 
   const values = [customer_name, person_name, email, mobile, lead_rfq_enquiry_date, status, approved_by];
@@ -42,7 +43,7 @@ exports.createCustomer = async (data, actor) => {
 
 exports.getCustomers = async (actor, search) => {
   let query = `
-    SELECT id, customer_name, person_name, email, mobile, lead_rfq_enquiry_date, status, created_at, updated_at
+    SELECT id, customer_name, person_name, email, mobile, lead_rfq_enquiry_date, status, is_active, created_at, updated_at
     FROM customer_master
   `;
 
@@ -81,12 +82,30 @@ exports.approveCustomer = async (id, actor) => {
     SET status = 'APPROVED',
         approved_by = $1,
         approved_at = CURRENT_TIMESTAMP,
+        is_active = TRUE,
         updated_at = CURRENT_TIMESTAMP
     WHERE id = $2
-    RETURNING id, customer_name, person_name, email, mobile, lead_rfq_enquiry_date, status, approved_by, approved_at, created_at, updated_at
+    RETURNING id, customer_name, person_name, email, mobile, lead_rfq_enquiry_date, status, approved_by, approved_at, is_active, created_at, updated_at
   `;
 
   const result = await pool.query(query, [actor.id, id]);
   return result.rows[0] || null;
 };
 
+
+exports.toggleCustomerActive = async (id, isActive, actor) => {
+  if (!isAdmin(actor)) {
+    throw new Error('Only admin can toggle customer status');
+  }
+
+  const query = `
+    UPDATE customer_master
+    SET is_active = $1,
+        updated_at = CURRENT_TIMESTAMP
+    WHERE id = $2
+    RETURNING id, customer_name, person_name, email, mobile, lead_rfq_enquiry_date, status, approved_by, approved_at, is_active, created_at, updated_at;
+  `;
+
+  const result = await pool.query(query, [isActive, id]);
+  return result.rows[0] || null;
+};
