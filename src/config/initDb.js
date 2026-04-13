@@ -128,6 +128,71 @@ const initDb = async () => {
 
       CREATE INDEX IF NOT EXISTS idx_lead_change_event_fields_event_id
         ON lead_change_event_fields (event_id);
+
+      -- ============================================================
+      -- HEAD OFFICE MODULE TABLES
+      -- ============================================================
+
+      -- HO Customers
+      CREATE TABLE IF NOT EXISTS ho_customers (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        customer_name VARCHAR(255) NOT NULL,
+        contact_person VARCHAR(255),
+        email VARCHAR(255),
+        mobile VARCHAR(50),
+        department VARCHAR(100),
+        status VARCHAR(50) DEFAULT 'ACTIVE',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+
+      -- HO Agreements
+      CREATE TABLE IF NOT EXISTS ho_agreements (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        agreement_name VARCHAR(255) NOT NULL,
+        customer_id UUID REFERENCES ho_customers(id) ON DELETE SET NULL,
+        department VARCHAR(100),
+        expiry_date DATE NOT NULL,
+        status VARCHAR(50) DEFAULT 'ACTIVE' CHECK (status IN ('ACTIVE', 'EXPIRED', 'PENDING')),
+        created_by UUID REFERENCES users(id) ON DELETE SET NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+
+      -- HO Agreement Files
+      CREATE TABLE IF NOT EXISTS ho_agreement_files (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        agreement_id UUID NOT NULL REFERENCES ho_agreements(id) ON DELETE CASCADE,
+        file_path TEXT NOT NULL,
+        file_name VARCHAR(255) NOT NULL,
+        file_type VARCHAR(50),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+
+      -- HO Cost Sheets
+      CREATE TABLE IF NOT EXISTS ho_cost_sheets (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        sheet_name VARCHAR(255) NOT NULL,
+        expiry_date DATE NOT NULL,
+        status VARCHAR(50) DEFAULT 'ACTIVE' CHECK (status IN ('ACTIVE', 'EXPIRED', 'PENDING')),
+        created_by UUID REFERENCES users(id) ON DELETE SET NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+
+      -- HO Notifications (Logs & Retries)
+      CREATE TABLE IF NOT EXISTS ho_notifications (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        agreement_id UUID REFERENCES ho_agreements(id) ON DELETE CASCADE,
+        cost_sheet_id UUID REFERENCES ho_cost_sheets(id) ON DELETE CASCADE,
+        notified_user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+        message TEXT NOT NULL,
+        status VARCHAR(20) DEFAULT 'SENT' CHECK (status IN ('SENT', 'FAILED', 'PENDING_RETRY')),
+        retry_count INTEGER DEFAULT 0,
+        next_retry_at TIMESTAMP,
+        scheduled_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        sent_at TIMESTAMP
+      );
     `);
 
     console.log('✅ Database tables initialized');

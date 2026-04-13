@@ -193,3 +193,38 @@ exports.getRegionStats = async (actor) => {
 
   return result.rows;
 };
+exports.getHODashboardStats = async () => {
+  const query = `
+    SELECT
+      -- Agreements Expiry
+      COUNT(*) FILTER (WHERE expiry_date > CURRENT_DATE AND expiry_date <= CURRENT_DATE + INTERVAL '30 days') AS ag_expiring_30,
+      COUNT(*) FILTER (WHERE expiry_date > CURRENT_DATE AND expiry_date <= CURRENT_DATE + INTERVAL '7 days') AS ag_expiring_7,
+      COUNT(*) FILTER (WHERE expiry_date < CURRENT_DATE) AS ag_expired,
+      COUNT(*) FILTER (WHERE expiry_date >= CURRENT_DATE) AS ag_pending,
+      
+      -- Cost Sheets Expiry
+      (SELECT COUNT(*) FROM ho_cost_sheets WHERE expiry_date > CURRENT_DATE AND expiry_date <= CURRENT_DATE + INTERVAL '30 days') AS cs_expiring_30,
+      (SELECT COUNT(*) FROM ho_cost_sheets WHERE expiry_date > CURRENT_DATE AND expiry_date <= CURRENT_DATE + INTERVAL '7 days') AS cs_expiring_7,
+      (SELECT COUNT(*) FROM ho_cost_sheets WHERE expiry_date < CURRENT_DATE) AS cs_expired,
+      (SELECT COUNT(*) FROM ho_cost_sheets WHERE expiry_date >= CURRENT_DATE) AS cs_pending
+    FROM ho_agreements
+  `;
+  
+  const result = await pool.query(query);
+  const row = result.rows[0];
+
+  return {
+    agreements: {
+      expiring_30_days: parseInt(row.ag_expiring_30) || 0,
+      expiring_7_days: parseInt(row.ag_expiring_7) || 0,
+      expired: parseInt(row.ag_expired) || 0,
+      pending: parseInt(row.ag_pending) || 0
+    },
+    cost_sheets: {
+      expiring_30_days: parseInt(row.cs_expiring_30) || 0,
+      expiring_7_days: parseInt(row.cs_expiring_7) || 0,
+      expired: parseInt(row.cs_expired) || 0,
+      pending: parseInt(row.cs_pending) || 0
+    }
+  };
+};

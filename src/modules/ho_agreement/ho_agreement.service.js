@@ -1,0 +1,145 @@
+const pool = require('../../config/db');
+const { sendMulticastNotification } = require('../../utils/notification.utils');
+const userService = require('../user/user.service');
+
+const sendInstantHONotification = async (docName, expiryDate) => {
+  try {
+    const tokens = await userService.getHeadOfficeTokens();
+    if (tokens.length > 0) {
+      await sendMulticastNotification(
+        tokens,
+        'Near Expiry Alert',
+        `The document "${docName}" is expiring soon on ${expiryDate}.`,
+        { type: 'HO_NEAR_EXPIRY', doc_name: docName, expiry_date: expiryDate }
+      );
+    }
+  } catch (err) {
+    console.error('Failed to send instant HO notification:', err.message);
+  }
+};
+
+exports.create = async (data, creatorId) => {
+  const { agreement_name, customer_id, department, expiry_date } = data;
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const query = `
+      INSERT INTO ho_agreements (agreement_name, customer_id, department, expiry_date, created_by)
+      VALUES ($1, $2, $3, $4, $5)
+      RETURNING *;
+    `;
+    const result = await client.query(query, [agreement_name, customer_id, department, expiry_date, creatorId]);
+    const agreement = result.rows[0];
+
+    // Check for instant notification (within 7 days)
+    const expiry = new Date(expiry_date);
+    const today = new Date();
+    const diffDays = Math.ceil((expiry - today) / (1000 * 60 * 60 * 24));
+    
+    if (diffDays <= 7) {
+      await sendInstantHONotification(agreement_name, expiry_date);
+    }
+
+    await client.query('COMMIT');
+    return agreement;
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
+};
+
+exports.findAll = async (filters = {}) => {
+  let query = `
+    SELECT a.*, c.customer_name 
+    FROM ho_agreements a
+    LEFT JOIN ho_customers c ON a.customer_id = c.id
+    WHERE 1=1
+  `;
+  const values = [];
+  let i = 1;
+
+  if (filters.search) {
+    query += ` AND (a.agreement_name ILIKE $${i} OR c.customer_name ILIKE $${i} OR a.department ILIKE $${i})`;
+    values.push(`%${filters.search}%`);
+    i++;
+  }
+
+  if (filters.department) {
+    query += ` AND a.department = $${i}`;
+    values.push(filters.department);
+    i++;
+  }
+
+  if (filters.status) {
+    query += ` AND a.status = $${i}`;
+    values.push(filters.status);
+    i++;
+  }
+
+  if (filters.expiry_start && filters.expiry_end) {
+    query += ` AND a.expiry_date BETWEEN $${i} AND $${i+1}`;
+    values.push(filters.expiry_start, filters.expiry_end);
+    i += 2;
+  }
+
+  query += ' ORDER BY a.expiry_date ASC';
+  const result = await pool.query(query, values);
+  return result.rows;
+};
+
+exports.findOne = async (id) => {
+  const query = `
+    SELECT a.*, c.customer_name 
+    FROM ho_agreements a
+    LEFT JOIN ho_customers c ON a.customer_id = c.id
+    WHERE a.id = $1
+  `;
+  const result = await pool.query(query, [id]);
+  return result.rows[0];
+};
+
+exports.update = async (id, data) => {
+  const { agreement_name, customer_id, department, expiry_date, status } = data;
+  const query = `
+    UPDATE ho_agreements
+    SET agreement_name = $1, customer_id = $2, department = $3, expiry_date = $4, status = $5, updated_at = CURRENT_TIMESTAMP
+    WHERE id = $6
+    RETURNING *;
+  `;
+  const result = await pool.query(query, [agreement_name, customer_id, department, expiry_date, status, id]);
+  
+  if (result.rows[0]) {
+    const expiry = new Date(expiry_date);
+    const today = new Date();
+    const diffDays = Math.ceil((expiry - today) / (1000 * 60 * 60 * 24));
+    if (diffDays <= 7) {
+      await sendInstantHONotification(agreement_name, expiry_date);
+    }
+  }
+  
+  return result.rows[0];
+};
+
+exports.delete = async (id) => {
+  const query = 'DELETE FROM ho_agreements WHERE id = $1 RETURNING *';
+  const result = await pool.query(query, [id]);
+  return result.rows[0];
+};
+
+exports.addFile = async (agreementId, filePath, fileName, fileType) => {
+  const query = `
+    INSERT INTO ho_agreement_files (agreement_id, file_path, file_name, file_type)
+    VALUES ($1, $2, $3, $4)
+    RETURNING *;
+  `;
+  const result = await pool.query(query, [agreementId, filePath, fileName, fileType]);
+  return result.rows[0];
+};
+
+exports.getFiles = async (agreementId) => {
+  const query = 'SELECT * FROM ho_agreement_files WHERE agreement_id = $1 ORDER BY created_at DESC';
+  const result = await pool.query(query, [agreementId]);
+  return result.rows;
+};

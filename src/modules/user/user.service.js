@@ -141,3 +141,15 @@ exports.getUserTokens = async (userIds) => {
   const result = await pool.query(query, userIds);
   return result.rows.map(r => r.fcm_token);
 };
+
+exports.getHeadOfficeTokens = async () => {
+  const query = `
+    SELECT fcm_token
+    FROM users
+    WHERE role = 'HEAD OFFICE'
+      AND fcm_token IS NOT NULL
+      AND fcm_token <> ''
+  `;
+  const result = await pool.query(query);
+  return result.rows.map(r => r.fcm_token);
+};
