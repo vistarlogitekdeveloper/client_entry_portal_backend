@@ -30,13 +30,37 @@ const sendInstantHONotification = async (docName, expiryDate) => {
 };
 
 exports.create = async (data, creatorId) => {
-  const { sheet_name, expiry_date } = data;
+  const { 
+    sheet_name, 
+    customer_id, 
+    project_name, 
+    effective_date, 
+    expiry_date, 
+    wage_revision_applicable, 
+    min_wage_revision_date, 
+    billing_rate_revision_date, 
+    approval_status, 
+    responsible_person, 
+    status, 
+    remarks 
+  } = data;
+
   const query = `
-    INSERT INTO ho_cost_sheets (sheet_name, expiry_date, created_by)
-    VALUES ($1, $2, $3)
+    INSERT INTO ho_cost_sheets (
+      sheet_name, customer_id, project_name, effective_date, 
+      expiry_date, wage_revision_applicable, min_wage_revision_date, 
+      billing_rate_revision_date, approval_status, responsible_person, 
+      status, remarks, created_by
+    )
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
     RETURNING *;
   `;
-  const result = await pool.query(query, [sheet_name, expiry_date, creatorId]);
+  const result = await pool.query(query, [
+    sheet_name, customer_id, project_name, effective_date, 
+    expiry_date, wage_revision_applicable, min_wage_revision_date, 
+    billing_rate_revision_date, approval_status, responsible_person, 
+    status || 'Active', remarks, creatorId
+  ]);
   const sheet = result.rows[0];
 
   // Check for instant notification (within 7 days)
@@ -52,48 +76,95 @@ exports.create = async (data, creatorId) => {
 };
 
 exports.findAll = async (filters = {}) => {
-  let query = 'SELECT * FROM ho_cost_sheets WHERE 1=1';
+  let query = `
+    SELECT s.*, c.customer_name 
+    FROM ho_cost_sheets s
+    LEFT JOIN ho_customers c ON s.customer_id = c.id
+    WHERE 1=1
+  `;
   const values = [];
   let i = 1;
 
   if (filters.search) {
-    query += ` AND sheet_name ILIKE $${i}`;
+    query += ` AND (
+      s.sheet_name ILIKE $${i} OR 
+      c.customer_name ILIKE $${i} OR 
+      s.project_name ILIKE $${i} OR 
+      s.responsible_person ILIKE $${i}
+    )`;
     values.push(`%${filters.search}%`);
     i++;
   }
 
   if (filters.status) {
-    query += ` AND status = $${i}`;
+    query += ` AND s.status = $${i}`;
     values.push(filters.status);
     i++;
   }
 
   if (filters.expiry_days) {
-    query += ` AND expiry_date > CURRENT_DATE AND expiry_date <= CURRENT_DATE + CAST($${i} || ' days' AS INTERVAL)`;
+    query += ` AND s.expiry_date > CURRENT_DATE AND s.expiry_date <= CURRENT_DATE + CAST($${i} || ' days' AS INTERVAL)`;
     values.push(filters.expiry_days);
     i++;
   }
 
-  query += ' ORDER BY expiry_date ASC';
+  query += ' ORDER BY s.expiry_date ASC';
   const result = await pool.query(query, values);
   return result.rows;
 };
 
 exports.findOne = async (id) => {
-  const query = 'SELECT * FROM ho_cost_sheets WHERE id = $1';
+  const query = `
+    SELECT s.*, c.customer_name 
+    FROM ho_cost_sheets s
+    LEFT JOIN ho_customers c ON s.customer_id = c.id
+    WHERE s.id = $1
+  `;
   const result = await pool.query(query, [id]);
   return result.rows[0];
 };
 
 exports.update = async (id, data) => {
-  const { sheet_name, expiry_date, status } = data;
+  const { 
+    sheet_name, 
+    customer_id, 
+    project_name, 
+    effective_date, 
+    expiry_date, 
+    wage_revision_applicable, 
+    min_wage_revision_date, 
+    billing_rate_revision_date, 
+    approval_status, 
+    responsible_person, 
+    status, 
+    remarks 
+  } = data;
+
   const query = `
     UPDATE ho_cost_sheets
-    SET sheet_name = $1, expiry_date = $2, status = $3, updated_at = CURRENT_TIMESTAMP
-    WHERE id = $4
+    SET 
+      sheet_name = $1, 
+      customer_id = $2, 
+      project_name = $3, 
+      effective_date = $4, 
+      expiry_date = $5, 
+      wage_revision_applicable = $6, 
+      min_wage_revision_date = $7, 
+      billing_rate_revision_date = $8, 
+      approval_status = $9, 
+      responsible_person = $10, 
+      status = $11, 
+      remarks = $12, 
+      updated_at = CURRENT_TIMESTAMP
+    WHERE id = $13
     RETURNING *;
   `;
-  const result = await pool.query(query, [sheet_name, expiry_date, status, id]);
+  const result = await pool.query(query, [
+    sheet_name, customer_id, project_name, effective_date, 
+    expiry_date, wage_revision_applicable, min_wage_revision_date, 
+    billing_rate_revision_date, approval_status, responsible_person, 
+    status, remarks, id
+  ]);
   
   if (result.rows[0]) {
     const expiry = new Date(expiry_date);
@@ -111,4 +182,27 @@ exports.delete = async (id) => {
   const query = 'DELETE FROM ho_cost_sheets WHERE id = $1 RETURNING *';
   const result = await pool.query(query, [id]);
   return result.rows[0];
+};
+
+// File methods
+exports.addFile = async (costSheetId, fileName, fileType, fileData) => {
+  const query = `
+    INSERT INTO ho_cost_sheet_files (cost_sheet_id, file_name, file_type, file_data)
+    VALUES ($1, $2, $3, $4)
+    RETURNING id, cost_sheet_id, file_name, file_type, created_at;
+  `;
+  const result = await pool.query(query, [costSheetId, fileName, fileType, fileData]);
+  return result.rows[0];
+};
+
+exports.getFileData = async (fileId) => {
+  const query = 'SELECT file_data, file_name, file_type FROM ho_cost_sheet_files WHERE id = $1';
+  const result = await pool.query(query, [fileId]);
+  return result.rows[0];
+};
+
+exports.getFiles = async (costSheetId) => {
+  const query = 'SELECT id, cost_sheet_id, file_name, file_type, created_at FROM ho_cost_sheet_files WHERE cost_sheet_id = $1 ORDER BY created_at DESC';
+  const result = await pool.query(query, [costSheetId]);
+  return result.rows;
 };

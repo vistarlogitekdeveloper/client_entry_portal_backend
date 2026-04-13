@@ -151,13 +151,34 @@ const initDb = async () => {
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         agreement_name VARCHAR(255) NOT NULL,
         customer_id UUID REFERENCES ho_customers(id) ON DELETE SET NULL,
-        department VARCHAR(100),
+        vendor_name VARCHAR(255),
+        agreement_type VARCHAR(255),
+        start_date DATE,
         expiry_date DATE NOT NULL,
-        status VARCHAR(50) DEFAULT 'ACTIVE' CHECK (status IN ('ACTIVE', 'EXPIRED', 'PENDING')),
+        renewal_frequency VARCHAR(100), -- Monthly, Quarterly, Half Yearly, Yearly, Custom
+        responsible_person VARCHAR(255),
+        department VARCHAR(100),
+        location_project VARCHAR(255),
+        status VARCHAR(50) DEFAULT 'Active',
+        remarks TEXT,
         created_by UUID REFERENCES users(id) ON DELETE SET NULL,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
+
+      -- Migration: Add new columns if they don't exist
+      ALTER TABLE ho_agreements ADD COLUMN IF NOT EXISTS vendor_name VARCHAR(255);
+      ALTER TABLE ho_agreements ADD COLUMN IF NOT EXISTS agreement_type VARCHAR(255);
+      ALTER TABLE ho_agreements ADD COLUMN IF NOT EXISTS start_date DATE;
+      ALTER TABLE ho_agreements ADD COLUMN IF NOT EXISTS renewal_frequency VARCHAR(100);
+      ALTER TABLE ho_agreements ADD COLUMN IF NOT EXISTS responsible_person VARCHAR(255);
+      ALTER TABLE ho_agreements ADD COLUMN IF NOT EXISTS location_project VARCHAR(255);
+      ALTER TABLE ho_agreements ADD COLUMN IF NOT EXISTS remarks TEXT;
+
+      -- Update status constraint: Drop old and add new
+      ALTER TABLE ho_agreements DROP CONSTRAINT IF EXISTS ho_agreements_status_check;
+      ALTER TABLE ho_agreements ADD CONSTRAINT ho_agreements_status_check 
+        CHECK (status IN ('Active', 'Expired', 'Renewed', 'Pending'));
 
       -- HO Agreement Files
       CREATE TABLE IF NOT EXISTS ho_agreement_files (
@@ -178,11 +199,46 @@ const initDb = async () => {
       CREATE TABLE IF NOT EXISTS ho_cost_sheets (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         sheet_name VARCHAR(255) NOT NULL,
+        customer_id UUID REFERENCES ho_customers(id) ON DELETE SET NULL,
+        project_name VARCHAR(255),
+        effective_date DATE,
         expiry_date DATE NOT NULL,
-        status VARCHAR(50) DEFAULT 'ACTIVE' CHECK (status IN ('ACTIVE', 'EXPIRED', 'PENDING')),
+        wage_revision_applicable VARCHAR(50), -- Yes, No
+        min_wage_revision_date DATE,
+        billing_rate_revision_date DATE,
+        approval_status VARCHAR(100),
+        responsible_person VARCHAR(255),
+        status VARCHAR(50) DEFAULT 'Active',
+        remarks TEXT,
         created_by UUID REFERENCES users(id) ON DELETE SET NULL,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+
+      -- Migration: Add new columns if they don't exist
+      ALTER TABLE ho_cost_sheets ADD COLUMN IF NOT EXISTS customer_id UUID REFERENCES ho_customers(id) ON DELETE SET NULL;
+      ALTER TABLE ho_cost_sheets ADD COLUMN IF NOT EXISTS project_name VARCHAR(255);
+      ALTER TABLE ho_cost_sheets ADD COLUMN IF NOT EXISTS effective_date DATE;
+      ALTER TABLE ho_cost_sheets ADD COLUMN IF NOT EXISTS wage_revision_applicable VARCHAR(50);
+      ALTER TABLE ho_cost_sheets ADD COLUMN IF NOT EXISTS min_wage_revision_date DATE;
+      ALTER TABLE ho_cost_sheets ADD COLUMN IF NOT EXISTS billing_rate_revision_date DATE;
+      ALTER TABLE ho_cost_sheets ADD COLUMN IF NOT EXISTS approval_status VARCHAR(100);
+      ALTER TABLE ho_cost_sheets ADD COLUMN IF NOT EXISTS responsible_person VARCHAR(255);
+      ALTER TABLE ho_cost_sheets ADD COLUMN IF NOT EXISTS remarks TEXT;
+
+      -- Update status constraint: Drop old and add new
+      ALTER TABLE ho_cost_sheets DROP CONSTRAINT IF EXISTS ho_cost_sheets_status_check;
+      ALTER TABLE ho_cost_sheets ADD CONSTRAINT ho_cost_sheets_status_check 
+        CHECK (status IN ('Active', 'Expired', 'Renewed', 'Pending'));
+
+      -- HO Cost Sheet Files
+      CREATE TABLE IF NOT EXISTS ho_cost_sheet_files (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        cost_sheet_id UUID NOT NULL REFERENCES ho_cost_sheets(id) ON DELETE CASCADE,
+        file_name VARCHAR(255) NOT NULL,
+        file_type VARCHAR(50),
+        file_data BYTEA,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
 
       -- HO Notifications (Logs & Retries)

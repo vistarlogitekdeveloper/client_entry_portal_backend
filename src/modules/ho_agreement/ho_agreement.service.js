@@ -30,16 +30,38 @@ const sendInstantHONotification = async (docName, expiryDate) => {
 };
 
 exports.create = async (data, creatorId) => {
-  const { agreement_name, customer_id, department, expiry_date } = data;
+  const { 
+    agreement_name, 
+    customer_id, 
+    vendor_name, 
+    agreement_type, 
+    start_date, 
+    expiry_date, 
+    renewal_frequency, 
+    responsible_person, 
+    department, 
+    location_project, 
+    status, 
+    remarks 
+  } = data;
+  
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
     const query = `
-      INSERT INTO ho_agreements (agreement_name, customer_id, department, expiry_date, created_by)
-      VALUES ($1, $2, $3, $4, $5)
+      INSERT INTO ho_agreements (
+        agreement_name, customer_id, vendor_name, agreement_type, 
+        start_date, expiry_date, renewal_frequency, responsible_person, 
+        department, location_project, status, remarks, created_by
+      )
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
       RETURNING *;
     `;
-    const result = await client.query(query, [agreement_name, customer_id, department, expiry_date, creatorId]);
+    const result = await client.query(query, [
+      agreement_name, customer_id, vendor_name, agreement_type, 
+      start_date, expiry_date, renewal_frequency, responsible_person, 
+      department, location_project, status || 'Active', remarks, creatorId
+    ]);
     const agreement = result.rows[0];
 
     // Check for instant notification (within 7 days)
@@ -72,7 +94,14 @@ exports.findAll = async (filters = {}) => {
   let i = 1;
 
   if (filters.search) {
-    query += ` AND (a.agreement_name ILIKE $${i} OR c.customer_name ILIKE $${i} OR a.department ILIKE $${i})`;
+    query += ` AND (
+      a.agreement_name ILIKE $${i} OR 
+      c.customer_name ILIKE $${i} OR 
+      a.vendor_name ILIKE $${i} OR 
+      a.responsible_person ILIKE $${i} OR 
+      a.department ILIKE $${i} OR 
+      a.location_project ILIKE $${i}
+    )`;
     values.push(`%${filters.search}%`);
     i++;
   }
@@ -99,6 +128,24 @@ exports.findAll = async (filters = {}) => {
     i++;
   }
 
+  if (filters.vendor_name) {
+    query += ` AND a.vendor_name ILIKE $${i}`;
+    values.push(`%${filters.vendor_name}%`);
+    i++;
+  }
+
+  if (filters.responsible_person) {
+    query += ` AND a.responsible_person ILIKE $${i}`;
+    values.push(`%${filters.responsible_person}%`);
+    i++;
+  }
+
+  if (filters.location_project) {
+    query += ` AND a.location_project ILIKE $${i}`;
+    values.push(`%${filters.location_project}%`);
+    i++;
+  }
+
   query += ' ORDER BY a.expiry_date ASC';
   const result = await pool.query(query, values);
   return result.rows;
@@ -116,14 +163,55 @@ exports.findOne = async (id) => {
 };
 
 exports.update = async (id, data) => {
-  const { agreement_name, customer_id, department, expiry_date, status } = data;
+  const { 
+    agreement_name, 
+    customer_id, 
+    vendor_name, 
+    agreement_type, 
+    start_date, 
+    expiry_date, 
+    renewal_frequency, 
+    responsible_person, 
+    department, 
+    location_project, 
+    status, 
+    remarks 
+  } = data;
+
   const query = `
     UPDATE ho_agreements
-    SET agreement_name = $1, customer_id = $2, department = $3, expiry_date = $4, status = $5, updated_at = CURRENT_TIMESTAMP
-    WHERE id = $6
+    SET 
+      agreement_name = $1, 
+      customer_id = $2, 
+      vendor_name = $3, 
+      agreement_type = $4, 
+      start_date = $5, 
+      expiry_date = $6, 
+      renewal_frequency = $7, 
+      responsible_person = $8, 
+      department = $9, 
+      location_project = $10, 
+      status = $11, 
+      remarks = $12, 
+      updated_at = CURRENT_TIMESTAMP
+    WHERE id = $13
     RETURNING *;
   `;
-  const result = await pool.query(query, [agreement_name, customer_id, department, expiry_date, status, id]);
+  const result = await pool.query(query, [
+    agreement_name, 
+    customer_id, 
+    vendor_name, 
+    agreement_type, 
+    start_date, 
+    expiry_date, 
+    renewal_frequency, 
+    responsible_person, 
+    department, 
+    location_project, 
+    status, 
+    remarks, 
+    id
+  ]);
   
   if (result.rows[0]) {
     const expiry = new Date(expiry_date);
