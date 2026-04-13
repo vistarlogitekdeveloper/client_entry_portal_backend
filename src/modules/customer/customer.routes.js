@@ -6,16 +6,16 @@ const authMiddleware = require('../../middleware/auth.middleware');
 const roleMiddleware = require('../../middleware/role.middleware');
 
 // Create customer
-router.post('/', authMiddleware, controller.create);
+router.post('/', authMiddleware, roleMiddleware(['BD', 'MANAGER', 'ADMIN']), controller.create);
 
 // Get customers (supports optional `search` query)
-router.get('/', authMiddleware, controller.getAll);
+router.get('/', authMiddleware, roleMiddleware(['BD', 'MANAGER', 'ADMIN']), controller.getAll);
 
-// Approve customer (ADMIN and HEAD OFFICE)
-router.post('/:id/approve', authMiddleware, roleMiddleware(['ADMIN', 'HEAD OFFICE']), controller.approve);
+// Approve customer (ADMIN and MANAGER only)
+router.post('/:id/approve', authMiddleware, roleMiddleware(['ADMIN', 'MANAGER']), controller.approve);
 
-// Toggle active status (ADMIN and HEAD OFFICE)
-router.put('/:id/toggle-active', authMiddleware, roleMiddleware(['ADMIN', 'HEAD OFFICE']), controller.toggleActive);
+// Toggle active status (ADMIN and MANAGER only)
+router.put('/:id/toggle-active', authMiddleware, roleMiddleware(['ADMIN', 'MANAGER']), controller.toggleActive);
 
 module.exports = router;
 

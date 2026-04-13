@@ -4,8 +4,8 @@ const controller = require('./ho_customer.controller');
 const authMiddleware = require('../../middleware/auth.middleware');
 const roleMiddleware = require('../../middleware/role.middleware');
 
-// All HO Customer routes restricted to HEAD OFFICE role
-router.use(authMiddleware, roleMiddleware(['HEAD OFFICE']));
+// All HO Customer routes restricted to HEAD OFFICE and ADMIN roles
+router.use(authMiddleware, roleMiddleware(['HEAD OFFICE', 'ADMIN']));
 
 router.post('/', controller.create);
 router.get('/', controller.getAll);
