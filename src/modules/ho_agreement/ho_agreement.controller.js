@@ -3,25 +3,8 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 
-// Use UPLOAD_DIR env var if set (e.g. Render persistent disk mount), else fall back to project root
-const uploadDir = process.env.UPLOAD_DIR
-  ? path.join(process.env.UPLOAD_DIR, 'agreements')
-  : path.join(process.cwd(), 'uploads', 'agreements');
-
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir, { recursive: true });
-}
-
-// Multer storage config
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, uploadDir);
-  },
-  filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-    cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
-  }
-});
+// Use memory storage for DB-based file storage
+const storage = multer.memoryStorage();
 
 const fileFilter = (req, file, cb) => {
   const allowedTypes = ['.pdf', '.xlsx', '.xls', '.jpg', '.jpeg', '.png'];
@@ -33,7 +16,11 @@ const fileFilter = (req, file, cb) => {
   }
 };
 
-exports.upload = multer({ storage, fileFilter });
+exports.upload = multer({ 
+  storage, 
+  fileFilter,
+  limits: { fileSize: 10 * 1024 * 1024 } // 10MB limit
+});
 
 exports.create = async (req, res) => {
   try {
@@ -92,9 +79,7 @@ exports.uploadFiles = async (req, res) => {
     const agreementId = req.params.id;
     const results = [];
     for (const file of req.files) {
-      // Store as a publicly accessible URL path so Flutter can use it directly
-      const relativePath = `uploads/agreements/${file.filename}`;
-      const fileRecord = await service.addFile(agreementId, relativePath, file.originalname, file.mimetype);
+      const fileRecord = await service.addFile(agreementId, file.originalname, file.mimetype, file.buffer);
       results.push(fileRecord);
     }
 
@@ -108,6 +93,19 @@ exports.getFiles = async (req, res) => {
   try {
     const data = await service.getFiles(req.params.id);
     res.json({ success: true, data });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+exports.viewFile = async (req, res) => {
+  try {
+    const file = await service.getFileData(req.params.id);
+    if (!file) return res.status(404).json({ success: false, message: 'File not found' });
+
+    res.setHeader('Content-Type', file.file_type);
+    res.setHeader('Content-Disposition', `inline; filename="${file.file_name}"`);
+    res.send(file.file_data);
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }

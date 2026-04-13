@@ -1,7 +1,7 @@
-const cron = require('node-cron');
 const pool = require('../config/db');
 const userService = require('../modules/user/user.service');
 const { sendMulticastNotification } = require('../utils/notification.utils');
+const { sendEmail } = require('../utils/email.utils');
 
 /**
  * Finds documents expiring in exactly 30, 15, 7, and 1 day(s).
@@ -40,16 +40,27 @@ const processNotifications = async (documents) => {
   const hoUsers = await pool.query("SELECT id FROM users WHERE role = 'HEAD OFFICE'");
   const hoUserIds = hoUsers.rows.map(u => u.id);
 
+  // Get emails for email notifications
+  const emails = await userService.getHeadOfficeEmails();
+
   for (const doc of documents) {
     const title = `Expiry Alert: ${doc.doc_type}`;
     const message = `The ${doc.doc_type.toLowerCase()} "${doc.name}" will expire on ${doc.expiry_date.toISOString().split('T')[0]}.`;
     
+    // Send Push Notifications
     try {
-      await sendMulticastNotification(tokens, title, message, {
-        type: `HO_${doc.doc_type}_EXPIRY`,
-        doc_id: doc.id,
-        expiry_date: doc.expiry_date.toISOString().split('T')[0]
-      });
+      if (tokens.length > 0) {
+        await sendMulticastNotification(tokens, title, message, {
+          type: `HO_${doc.doc_type}_EXPIRY`,
+          doc_id: doc.id,
+          expiry_date: doc.expiry_date.toISOString().split('T')[0]
+        });
+      }
+
+      // Send Email Notifications
+      if (emails.length > 0) {
+        await sendEmail(emails, title, message);
+      }
 
       // Log success for each HO user
       for (const userId of hoUserIds) {

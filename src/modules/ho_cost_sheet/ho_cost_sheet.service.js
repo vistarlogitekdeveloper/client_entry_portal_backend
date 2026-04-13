@@ -1,17 +1,28 @@
 const pool = require('../../config/db');
 const { sendMulticastNotification } = require('../../utils/notification.utils');
+const { sendEmail } = require('../../utils/email.utils');
 const userService = require('../user/user.service');
 
 const sendInstantHONotification = async (docName, expiryDate) => {
   try {
+    const title = 'Near Expiry Alert (Cost Sheet)';
+    const message = `The cost sheet "${docName}" is expiring soon on ${expiryDate}.`;
+
+    // Send Push Notification
     const tokens = await userService.getHeadOfficeTokens();
     if (tokens.length > 0) {
       await sendMulticastNotification(
         tokens,
-        'Near Expiry Alert (Cost Sheet)',
-        `The cost sheet "${docName}" is expiring soon on ${expiryDate}.`,
+        title,
+        message,
         { type: 'HO_COST_SHEET_NEAR_EXPIRY', doc_name: docName, expiry_date: expiryDate }
       );
+    }
+
+    // Send Email Notification
+    const emails = await userService.getHeadOfficeEmails();
+    if (emails.length > 0) {
+      await sendEmail(emails, title, message);
     }
   } catch (err) {
     console.error('Failed to send instant HO notification:', err.message);
@@ -54,6 +65,12 @@ exports.findAll = async (filters = {}) => {
   if (filters.status) {
     query += ` AND status = $${i}`;
     values.push(filters.status);
+    i++;
+  }
+
+  if (filters.expiry_days) {
+    query += ` AND expiry_date > CURRENT_DATE AND expiry_date <= CURRENT_DATE + CAST($${i} || ' days' AS INTERVAL)`;
+    values.push(filters.expiry_days);
     i++;
   }
 

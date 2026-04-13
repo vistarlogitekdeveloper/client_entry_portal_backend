@@ -1,17 +1,28 @@
 const pool = require('../../config/db');
 const { sendMulticastNotification } = require('../../utils/notification.utils');
+const { sendEmail } = require('../../utils/email.utils');
 const userService = require('../user/user.service');
 
 const sendInstantHONotification = async (docName, expiryDate) => {
   try {
+    const title = 'Near Expiry Alert';
+    const message = `The document "${docName}" is expiring soon on ${expiryDate}.`;
+
+    // Send Push Notification
     const tokens = await userService.getHeadOfficeTokens();
     if (tokens.length > 0) {
       await sendMulticastNotification(
         tokens,
-        'Near Expiry Alert',
-        `The document "${docName}" is expiring soon on ${expiryDate}.`,
+        title,
+        message,
         { type: 'HO_NEAR_EXPIRY', doc_name: docName, expiry_date: expiryDate }
       );
+    }
+
+    // Send Email Notification
+    const emails = await userService.getHeadOfficeEmails();
+    if (emails.length > 0) {
+      await sendEmail(emails, title, message);
     }
   } catch (err) {
     console.error('Failed to send instant HO notification:', err.message);
@@ -82,6 +93,10 @@ exports.findAll = async (filters = {}) => {
     query += ` AND a.expiry_date BETWEEN $${i} AND $${i+1}`;
     values.push(filters.expiry_start, filters.expiry_end);
     i += 2;
+  } else if (filters.expiry_days) {
+    query += ` AND a.expiry_date > CURRENT_DATE AND a.expiry_date <= CURRENT_DATE + CAST($${i} || ' days' AS INTERVAL)`;
+    values.push(filters.expiry_days);
+    i++;
   }
 
   query += ' ORDER BY a.expiry_date ASC';
@@ -128,18 +143,24 @@ exports.delete = async (id) => {
   return result.rows[0];
 };
 
-exports.addFile = async (agreementId, filePath, fileName, fileType) => {
+exports.addFile = async (agreementId, fileName, fileType, fileData) => {
   const query = `
-    INSERT INTO ho_agreement_files (agreement_id, file_path, file_name, file_type)
+    INSERT INTO ho_agreement_files (agreement_id, file_name, file_type, file_data)
     VALUES ($1, $2, $3, $4)
-    RETURNING *;
+    RETURNING id, agreement_id, file_name, file_type, created_at;
   `;
-  const result = await pool.query(query, [agreementId, filePath, fileName, fileType]);
+  const result = await pool.query(query, [agreementId, fileName, fileType, fileData]);
+  return result.rows[0];
+};
+
+exports.getFileData = async (fileId) => {
+  const query = 'SELECT file_data, file_name, file_type FROM ho_agreement_files WHERE id = $1';
+  const result = await pool.query(query, [fileId]);
   return result.rows[0];
 };
 
 exports.getFiles = async (agreementId) => {
-  const query = 'SELECT * FROM ho_agreement_files WHERE agreement_id = $1 ORDER BY created_at DESC';
+  const query = 'SELECT id, agreement_id, file_name, file_type, created_at FROM ho_agreement_files WHERE agreement_id = $1 ORDER BY created_at DESC';
   const result = await pool.query(query, [agreementId]);
   return result.rows;
 };

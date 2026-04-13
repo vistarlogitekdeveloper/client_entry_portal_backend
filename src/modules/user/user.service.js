@@ -153,3 +153,15 @@ exports.getHeadOfficeTokens = async () => {
   const result = await pool.query(query);
   return result.rows.map(r => r.fcm_token);
 };
+
+exports.getHeadOfficeEmails = async () => {
+  const query = `
+    SELECT email
+    FROM users
+    WHERE role = 'HEAD OFFICE'
+      AND email IS NOT NULL
+      AND email <> ''
+  `;
+  const result = await pool.query(query);
+  return result.rows.map(r => r.email);
+};
