@@ -3,8 +3,11 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 
-// Ensure upload directory exists
-const uploadDir = path.join(__dirname, '../../../uploads/agreements');
+// Use UPLOAD_DIR env var if set (e.g. Render persistent disk mount), else fall back to project root
+const uploadDir = process.env.UPLOAD_DIR
+  ? path.join(process.env.UPLOAD_DIR, 'agreements')
+  : path.join(process.cwd(), 'uploads', 'agreements');
+
 if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
 }
@@ -89,7 +92,7 @@ exports.uploadFiles = async (req, res) => {
     const agreementId = req.params.id;
     const results = [];
     for (const file of req.files) {
-      // We store relative path for easier serving
+      // Store as a publicly accessible URL path so Flutter can use it directly
       const relativePath = `uploads/agreements/${file.filename}`;
       const fileRecord = await service.addFile(agreementId, relativePath, file.originalname, file.mimetype);
       results.push(fileRecord);

@@ -163,11 +163,16 @@ const initDb = async () => {
       CREATE TABLE IF NOT EXISTS ho_agreement_files (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         agreement_id UUID NOT NULL REFERENCES ho_agreements(id) ON DELETE CASCADE,
-        file_path TEXT NOT NULL,
+        file_path TEXT,
         file_name VARCHAR(255) NOT NULL,
         file_type VARCHAR(50),
+        file_data BYTEA,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
+
+      -- Migrate existing table if needed
+      ALTER TABLE ho_agreement_files ADD COLUMN IF NOT EXISTS file_data BYTEA;
+      ALTER TABLE ho_agreement_files ALTER COLUMN file_path DROP NOT NULL;
 
       -- HO Cost Sheets
       CREATE TABLE IF NOT EXISTS ho_cost_sheets (

@@ -9,7 +9,9 @@ app.use(cors());
 app.use(express.json());
 
 // Serving uploaded files statically
-app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
+// Must match the same UPLOAD_DIR logic as the agreement controller
+const uploadBase = process.env.UPLOAD_DIR || path.join(process.cwd(), 'uploads');
+app.use('/uploads', express.static(uploadBase));
 
 // ✅ Test routes
 app.get('/', (req, res) => {
