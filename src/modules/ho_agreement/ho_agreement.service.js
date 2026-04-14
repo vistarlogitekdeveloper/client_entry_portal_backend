@@ -1,4 +1,5 @@
 const pool = require('../../config/db');
+const XLSX = require('xlsx');
 const { sendMulticastNotification } = require('../../utils/notification.utils');
 const { sendEmail } = require('../../utils/email.utils');
 const userService = require('../user/user.service');
@@ -231,6 +232,44 @@ exports.delete = async (id) => {
   const query = 'DELETE FROM ho_agreements WHERE id = $1 RETURNING *';
   const result = await pool.query(query, [id]);
   return result.rows[0];
+};
+
+exports.exportToExcel = async (filters = {}) => {
+  const agreements = await exports.findAll(filters);
+
+  const data = agreements.map(a => ({
+    'Agreement Name': a.agreement_name,
+    'Vendor Name': a.vendor_name || 'N/A',
+    'Agreement Type': a.agreement_type || 'N/A',
+    'Location / Project': a.location_project || 'N/A',
+    'Responsible Person': a.responsible_person || 'N/A',
+    'Status': a.status,
+    'Start Date': a.start_date ? new Date(a.start_date).toLocaleDateString() : 'N/A',
+    'Expiry Date': a.expiry_date ? new Date(a.expiry_date).toLocaleDateString() : 'N/A',
+    'Remarks': a.remarks || ''
+  }));
+
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.json_to_sheet(data);
+
+  // Set column widths
+  const wscols = [
+    { wch: 30 }, // Agreement Name
+    { wch: 25 }, // Vendor Name
+    { wch: 20 }, // Agreement Type
+    { wch: 25 }, // Location / Project
+    { wch: 20 }, // Responsible Person
+    { wch: 12 }, // Status
+    { wch: 15 }, // Start Date
+    { wch: 15 }, // Expiry Date
+    { wch: 40 }  // Remarks
+  ];
+  ws['!cols'] = wscols;
+
+  XLSX.utils.book_append_sheet(wb, ws, 'Agreements');
+  
+  const buffer = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+  return buffer;
 };
 
 exports.addFile = async (agreementId, fileName, fileType, fileData) => {

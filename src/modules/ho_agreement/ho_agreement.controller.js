@@ -110,3 +110,16 @@ exports.viewFile = async (req, res) => {
     res.status(500).json({ success: false, message: err.message });
   }
 };
+
+exports.exportExcel = async (req, res) => {
+  try {
+    const buffer = await service.exportToExcel(req.query);
+    const fileName = `agreements_export_${new Date().toISOString().split('T')[0]}.xlsx`;
+
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+    res.send(buffer);
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
