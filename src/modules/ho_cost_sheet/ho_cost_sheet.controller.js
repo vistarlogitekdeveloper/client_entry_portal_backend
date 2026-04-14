@@ -109,3 +109,14 @@ exports.viewFile = async (req, res) => {
     res.status(500).json({ success: false, message: err.message });
   }
 };
+
+exports.exportExcel = async (req, res) => {
+  try {
+    const buffer = await service.exportToExcel(req.query);
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', 'attachment; filename=cost-sheets.xlsx');
+    res.send(buffer);
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};

@@ -104,7 +104,19 @@ exports.viewFile = async (req, res) => {
 
     res.setHeader('Content-Type', file.file_type);
     res.setHeader('Content-Disposition', `inline; filename="${file.file_name}"`);
+    res.set('Cache-Control', 'no-cache');
     res.send(file.file_data);
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+exports.exportExcel = async (req, res) => {
+  try {
+    const buffer = await service.exportToExcel(req.query);
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', 'attachment; filename=certifications.xlsx');
+    res.send(buffer);
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }

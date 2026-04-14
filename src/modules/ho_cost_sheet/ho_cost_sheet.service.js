@@ -1,4 +1,5 @@
 const pool = require('../../config/db');
+const XLSX = require('xlsx');
 const { sendMulticastNotification } = require('../../utils/notification.utils');
 const { sendEmail } = require('../../utils/email.utils');
 const userService = require('../user/user.service');
@@ -205,4 +206,28 @@ exports.getFiles = async (costSheetId) => {
   const query = 'SELECT id, cost_sheet_id, file_name, file_type, created_at FROM ho_cost_sheet_files WHERE cost_sheet_id = $1 ORDER BY created_at DESC';
   const result = await pool.query(query, [costSheetId]);
   return result.rows;
+};
+
+exports.exportToExcel = async (filters) => {
+  const data = await this.findAll(filters);
+  
+  const workbookData = data.map(item => ({
+    'Sheet Name': item.sheet_name,
+    'Customer': item.customer_name || 'N/A',
+    'Project': item.project_name || 'N/A',
+    'Effective Date': item.effective_date ? new Date(item.effective_date).toLocaleDateString() : 'N/A',
+    'Expiry Date': item.expiry_date ? new Date(item.expiry_date).toLocaleDateString() : 'N/A',
+    'Wage Revision': item.wage_revision_applicable || 'N/A',
+    'Min Wage Rev Date': item.min_wage_revision_date ? new Date(item.min_wage_revision_date).toLocaleDateString() : 'N/A',
+    'Bill Rate Rev Date': item.billing_rate_revision_date ? new Date(item.billing_rate_revision_date).toLocaleDateString() : 'N/A',
+    'Responsible Person': item.responsible_person || 'N/A',
+    'Status': item.status,
+    'Remarks': item.remarks || ''
+  }));
+
+  const worksheet = XLSX.utils.json_to_sheet(workbookData);
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, 'Cost Sheets');
+
+  return XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
 };

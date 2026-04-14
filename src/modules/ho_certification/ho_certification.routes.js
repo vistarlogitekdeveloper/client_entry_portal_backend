@@ -8,6 +8,7 @@ const roleMiddleware = require('../../middleware/role.middleware');
 router.use(authMiddleware, roleMiddleware(['HEAD OFFICE', 'ADMIN']));
 
 router.post('/', controller.create);
+router.get('/export', controller.exportExcel);
 router.get('/', controller.getAll);
 router.get('/:id', controller.getOne);
 router.put('/:id', controller.update);

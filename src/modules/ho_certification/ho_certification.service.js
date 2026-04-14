@@ -1,4 +1,5 @@
 const pool = require('../../config/db');
+const XLSX = require('xlsx');
 const { sendMulticastNotification } = require('../../utils/notification.utils');
 const { sendEmail } = require('../../utils/email.utils');
 const userService = require('../user/user.service');
@@ -206,4 +207,27 @@ exports.getFiles = async (certificationId) => {
   const query = 'SELECT id, certification_id, file_name, file_type, created_at FROM ho_certification_files WHERE certification_id = $1 ORDER BY created_at DESC';
   const result = await pool.query(query, [certificationId]);
   return result.rows;
+};
+
+exports.exportToExcel = async (filters) => {
+  const data = await this.findAll(filters);
+  
+  const workbookData = data.map(item => ({
+    'Certification Name': item.certification_name,
+    'Customer': item.customer_name || 'N/A',
+    'Type': item.certification_type || 'N/A',
+    'Issuing Authority': item.issuing_authority || 'N/A',
+    'Location/Project': item.location_project || 'N/A',
+    'Responsible Person': item.responsible_person || 'N/A',
+    'Issue Date': item.issue_date ? new Date(item.issue_date).toLocaleDateString() : 'N/A',
+    'Expiry Date': item.expiry_date ? new Date(item.expiry_date).toLocaleDateString() : 'N/A',
+    'Status': item.status,
+    'Remarks': item.remarks || ''
+  }));
+
+  const worksheet = XLSX.utils.json_to_sheet(workbookData);
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, 'Certifications');
+
+  return XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
 };
