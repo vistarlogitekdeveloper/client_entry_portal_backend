@@ -196,18 +196,23 @@ exports.getRegionStats = async (actor) => {
 exports.getHODashboardStats = async () => {
   const query = `
     SELECT
-      -- Agreements Expiry
-      COUNT(*) FILTER (WHERE expiry_date > CURRENT_DATE AND expiry_date <= CURRENT_DATE + INTERVAL '30 days') AS ag_expiring_30,
-      COUNT(*) FILTER (WHERE expiry_date > CURRENT_DATE AND expiry_date <= CURRENT_DATE + INTERVAL '7 days') AS ag_expiring_7,
-      COUNT(*) FILTER (WHERE expiry_date < CURRENT_DATE) AS ag_expired,
-      COUNT(*) FILTER (WHERE expiry_date >= CURRENT_DATE) AS ag_pending,
+      -- Agreements
+      (SELECT COUNT(*)::INTEGER FROM ho_agreements WHERE expiry_date > CURRENT_DATE AND expiry_date <= CURRENT_DATE + INTERVAL '30 days') AS ag_expiring_30,
+      (SELECT COUNT(*)::INTEGER FROM ho_agreements WHERE expiry_date > CURRENT_DATE AND expiry_date <= CURRENT_DATE + INTERVAL '7 days') AS ag_expiring_7,
+      (SELECT COUNT(*)::INTEGER FROM ho_agreements WHERE expiry_date < CURRENT_DATE) AS ag_expired,
+      (SELECT COUNT(*)::INTEGER FROM ho_agreements WHERE expiry_date >= CURRENT_DATE) AS ag_pending,
       
-      -- Cost Sheets Expiry
-      (SELECT COUNT(*) FROM ho_cost_sheets WHERE expiry_date > CURRENT_DATE AND expiry_date <= CURRENT_DATE + INTERVAL '30 days') AS cs_expiring_30,
-      (SELECT COUNT(*) FROM ho_cost_sheets WHERE expiry_date > CURRENT_DATE AND expiry_date <= CURRENT_DATE + INTERVAL '7 days') AS cs_expiring_7,
-      (SELECT COUNT(*) FROM ho_cost_sheets WHERE expiry_date < CURRENT_DATE) AS cs_expired,
-      (SELECT COUNT(*) FROM ho_cost_sheets WHERE expiry_date >= CURRENT_DATE) AS cs_pending
-    FROM ho_agreements
+      -- Cost Sheets
+      (SELECT COUNT(*)::INTEGER FROM ho_cost_sheets WHERE expiry_date > CURRENT_DATE AND expiry_date <= CURRENT_DATE + INTERVAL '30 days') AS cs_expiring_30,
+      (SELECT COUNT(*)::INTEGER FROM ho_cost_sheets WHERE expiry_date > CURRENT_DATE AND expiry_date <= CURRENT_DATE + INTERVAL '7 days') AS cs_expiring_7,
+      (SELECT COUNT(*)::INTEGER FROM ho_cost_sheets WHERE expiry_date < CURRENT_DATE) AS cs_expired,
+      (SELECT COUNT(*)::INTEGER FROM ho_cost_sheets WHERE expiry_date >= CURRENT_DATE) AS cs_pending,
+
+      -- Certifications
+      (SELECT COUNT(*)::INTEGER FROM ho_certifications WHERE expiry_date > CURRENT_DATE AND expiry_date <= CURRENT_DATE + INTERVAL '30 days') AS cert_expiring_30,
+      (SELECT COUNT(*)::INTEGER FROM ho_certifications WHERE expiry_date > CURRENT_DATE AND expiry_date <= CURRENT_DATE + INTERVAL '7 days') AS cert_expiring_7,
+      (SELECT COUNT(*)::INTEGER FROM ho_certifications WHERE expiry_date < CURRENT_DATE) AS cert_expired,
+      (SELECT COUNT(*)::INTEGER FROM ho_certifications WHERE expiry_date >= CURRENT_DATE) AS cert_pending
   `;
   
   const result = await pool.query(query);
@@ -215,16 +220,22 @@ exports.getHODashboardStats = async () => {
 
   return {
     agreements: {
-      expiring_30_days: parseInt(row.ag_expiring_30) || 0,
-      expiring_7_days: parseInt(row.ag_expiring_7) || 0,
-      expired: parseInt(row.ag_expired) || 0,
-      pending: parseInt(row.ag_pending) || 0
+      expiring_30_days: row.ag_expiring_30 || 0,
+      expiring_7_days: row.ag_expiring_7 || 0,
+      expired: row.ag_expired || 0,
+      pending: row.ag_pending || 0
     },
     cost_sheets: {
-      expiring_30_days: parseInt(row.cs_expiring_30) || 0,
-      expiring_7_days: parseInt(row.cs_expiring_7) || 0,
-      expired: parseInt(row.cs_expired) || 0,
-      pending: parseInt(row.cs_pending) || 0
+      expiring_30_days: row.cs_expiring_30 || 0,
+      expiring_7_days: row.cs_expiring_7 || 0,
+      expired: row.cs_expired || 0,
+      pending: row.cs_pending || 0
+    },
+    certifications: {
+      expiring_30_days: row.cert_expiring_30 || 0,
+      expiring_7_days: row.cert_expiring_7 || 0,
+      expired: row.cert_expired || 0,
+      pending: row.cert_pending || 0
     }
   };
 };
