@@ -60,7 +60,7 @@ exports.create = async (data, creatorId) => {
     sheet_name, customer_id, project_name, effective_date, 
     expiry_date, wage_revision_applicable, min_wage_revision_date, 
     billing_rate_revision_date, approval_status, responsible_person, 
-    status || 'Active', remarks, creatorId
+    status ? status.toUpperCase() : 'ACTIVE', remarks, creatorId
   ]);
   const sheet = result.rows[0];
 
@@ -99,7 +99,7 @@ exports.findAll = async (filters = {}) => {
 
   if (filters.status) {
     query += ` AND s.status = $${i}`;
-    values.push(filters.status);
+    values.push(filters.status.toUpperCase());
     i++;
   }
 
@@ -164,7 +164,7 @@ exports.update = async (id, data) => {
     sheet_name, customer_id, project_name, effective_date, 
     expiry_date, wage_revision_applicable, min_wage_revision_date, 
     billing_rate_revision_date, approval_status, responsible_person, 
-    status, remarks, id
+    status ? status.toUpperCase() : 'ACTIVE', remarks, id
   ]);
   
   if (result.rows[0]) {

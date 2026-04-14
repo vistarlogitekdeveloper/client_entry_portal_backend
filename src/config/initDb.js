@@ -102,7 +102,7 @@ const initDb = async () => {
         agreement_name VARCHAR(255) NOT NULL,
         customer_id UUID REFERENCES ho_customers(id) ON DELETE SET NULL,
         expiry_date DATE NOT NULL,
-        status VARCHAR(50) DEFAULT 'Active',
+        status VARCHAR(50) DEFAULT 'ACTIVE',
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
     `, 'HO Agreements base table');
@@ -126,7 +126,7 @@ const initDb = async () => {
     await execute(`
       DO $$ BEGIN 
         ALTER TABLE ho_agreements DROP CONSTRAINT IF EXISTS ho_agreements_status_check;
-        ALTER TABLE ho_agreements ADD CONSTRAINT ho_agreements_status_check CHECK (status IN ('Active', 'Expired', 'Renewed', 'Pending'));
+        ALTER TABLE ho_agreements ADD CONSTRAINT ho_agreements_status_check CHECK (status IN ('ACTIVE', 'EXPIRED', 'RENEWED', 'PENDING'));
       EXCEPTION WHEN others THEN NULL; END $$;
     `, 'Agreement status constraint');
 
@@ -136,7 +136,7 @@ const initDb = async () => {
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         sheet_name VARCHAR(255) NOT NULL,
         expiry_date DATE NOT NULL,
-        status VARCHAR(50) DEFAULT 'Active',
+        status VARCHAR(50) DEFAULT 'ACTIVE',
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
     `, 'HO Cost sheets base table');
@@ -160,7 +160,7 @@ const initDb = async () => {
     await execute(`
       DO $$ BEGIN 
         ALTER TABLE ho_cost_sheets DROP CONSTRAINT IF EXISTS ho_cost_sheets_status_check;
-        ALTER TABLE ho_cost_sheets ADD CONSTRAINT ho_cost_sheets_status_check CHECK (status IN ('Active', 'Expired', 'Renewed', 'Pending'));
+        ALTER TABLE ho_cost_sheets ADD CONSTRAINT ho_cost_sheets_status_check CHECK (status IN ('ACTIVE', 'EXPIRED', 'RENEWED', 'PENDING'));
       EXCEPTION WHEN others THEN NULL; END $$;
     `, 'Cost sheet status constraint');
 
@@ -170,7 +170,7 @@ const initDb = async () => {
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         certification_name VARCHAR(255) NOT NULL,
         expiry_date DATE NOT NULL,
-        status VARCHAR(50) DEFAULT 'Active',
+        status VARCHAR(50) DEFAULT 'ACTIVE',
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
     `, 'HO Certifications base table');
@@ -192,7 +192,7 @@ const initDb = async () => {
     await execute(`
       DO $$ BEGIN 
         ALTER TABLE ho_certifications DROP CONSTRAINT IF EXISTS ho_certifications_status_check;
-        ALTER TABLE ho_certifications ADD CONSTRAINT ho_certifications_status_check CHECK (status IN ('Active', 'Expired', 'Renewed', 'Pending'));
+        ALTER TABLE ho_certifications ADD CONSTRAINT ho_certifications_status_check CHECK (status IN ('ACTIVE', 'EXPIRED', 'RENEWED', 'PENDING'));
       EXCEPTION WHEN others THEN NULL; END $$;
     `, 'Certification status constraint');
 
