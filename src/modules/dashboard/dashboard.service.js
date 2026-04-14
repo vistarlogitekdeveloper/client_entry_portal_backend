@@ -195,6 +195,7 @@ exports.getRegionStats = async (actor) => {
 };
 exports.getHODashboardStats = async () => {
   const query = `
+    SELECT
       -- Agreements
       (SELECT COUNT(*)::INTEGER FROM ho_agreements WHERE expiry_date > CURRENT_DATE AND expiry_date <= CURRENT_DATE + INTERVAL '30 days') AS ag_expiring_30,
       (SELECT COUNT(*)::INTEGER FROM ho_agreements WHERE expiry_date > CURRENT_DATE AND expiry_date <= CURRENT_DATE + INTERVAL '7 days') AS ag_expiring_7,
