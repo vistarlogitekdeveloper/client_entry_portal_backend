@@ -164,6 +164,38 @@ const initDb = async () => {
       EXCEPTION WHEN others THEN NULL; END $$;
     `, 'Cost sheet status constraint');
 
+    // HO Certifications
+    await execute(`
+      CREATE TABLE IF NOT EXISTS ho_certifications (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        certification_name VARCHAR(255) NOT NULL,
+        expiry_date DATE NOT NULL,
+        status VARCHAR(50) DEFAULT 'Active',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `, 'HO Certifications base table');
+
+    const certificationCols = [
+      'customer_id UUID REFERENCES ho_customers(id) ON DELETE SET NULL',
+      'certification_type VARCHAR(255)',
+      'issuing_authority VARCHAR(255)',
+      'location_project VARCHAR(255)',
+      'responsible_person VARCHAR(255)',
+      'issue_date DATE',
+      'remarks TEXT',
+      'created_by UUID REFERENCES users(id) ON DELETE SET NULL'
+    ];
+    for (const col of certificationCols) {
+      await execute(`ALTER TABLE ho_certifications ADD COLUMN IF NOT EXISTS ${col};`, `Certification ${col.split(' ')[0]} column`);
+    }
+
+    await execute(`
+      DO $$ BEGIN 
+        ALTER TABLE ho_certifications DROP CONSTRAINT IF EXISTS ho_certifications_status_check;
+        ALTER TABLE ho_certifications ADD CONSTRAINT ho_certifications_status_check CHECK (status IN ('Active', 'Expired', 'Renewed', 'Pending'));
+      EXCEPTION WHEN others THEN NULL; END $$;
+    `, 'Certification status constraint');
+
     // Files Tables
     await execute(`
       CREATE TABLE IF NOT EXISTS ho_agreement_files (
@@ -187,12 +219,24 @@ const initDb = async () => {
       );
     `, 'HO Cost sheet files');
 
+    await execute(`
+      CREATE TABLE IF NOT EXISTS ho_certification_files (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        certification_id UUID NOT NULL REFERENCES ho_certifications(id) ON DELETE CASCADE,
+        file_name VARCHAR(255) NOT NULL,
+        file_type VARCHAR(50),
+        file_data BYTEA,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `, 'HO Certification files');
+
     // Notifications
     await execute(`
       CREATE TABLE IF NOT EXISTS ho_notifications (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         agreement_id UUID REFERENCES ho_agreements(id) ON DELETE CASCADE,
         cost_sheet_id UUID REFERENCES ho_cost_sheets(id) ON DELETE CASCADE,
+        certification_id UUID REFERENCES ho_certifications(id) ON DELETE CASCADE,
         notified_user_id UUID REFERENCES users(id) ON DELETE CASCADE,
         message TEXT NOT NULL,
         status VARCHAR(20) DEFAULT 'SENT' CHECK (status IN ('SENT', 'FAILED', 'PENDING_RETRY')),

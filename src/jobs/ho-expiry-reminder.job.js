@@ -19,6 +19,13 @@ const findExpiringDocuments = async () => {
     SELECT 'COST_SHEET' AS doc_type, id, sheet_name AS name, expiry_date
     FROM ho_cost_sheets
     WHERE status = 'ACTIVE'
+      AND expiry_date IN (CURRENT_DATE + 30, CURRENT_DATE + 15, CURRENT_DATE + 7, CURRENT_DATE + 1)
+
+    UNION ALL
+    
+    SELECT 'CERTIFICATION' AS doc_type, id, certification_name AS name, expiry_date
+    FROM ho_certifications
+    WHERE status = 'ACTIVE'
       AND expiry_date IN (CURRENT_DATE + 30, CURRENT_DATE + 15, CURRENT_DATE + 7, CURRENT_DATE + 1);
   `;
   const result = await pool.query(query);
@@ -66,9 +73,15 @@ const processNotifications = async (documents) => {
       // Log success for each HO user
       for (const userId of hoUserIds) {
         await pool.query(
-          `INSERT INTO ho_notifications (agreement_id, cost_sheet_id, notified_user_id, message, status, sent_at)
-           VALUES ($1, $2, $3, $4, 'SENT', CURRENT_TIMESTAMP)`,
-          [doc.doc_type === 'AGREEMENT' ? doc.id : null, doc.doc_type === 'COST_SHEET' ? doc.id : null, userId, message]
+          `INSERT INTO ho_notifications (agreement_id, cost_sheet_id, certification_id, notified_user_id, message, status, sent_at)
+           VALUES ($1, $2, $3, $4, $5, 'SENT', CURRENT_TIMESTAMP)`,
+          [
+            doc.doc_type === 'AGREEMENT' ? doc.id : null, 
+            doc.doc_type === 'COST_SHEET' ? doc.id : null, 
+            doc.doc_type === 'CERTIFICATION' ? doc.id : null,
+            userId, 
+            message
+          ]
         );
       }
     } catch (err) {
@@ -76,9 +89,15 @@ const processNotifications = async (documents) => {
       // Log failure for retry
       for (const userId of hoUserIds) {
         await pool.query(
-          `INSERT INTO ho_notifications (agreement_id, cost_sheet_id, notified_user_id, message, status, retry_count, next_retry_at)
-           VALUES ($1, $2, $3, $4, 'PENDING_RETRY', 0, CURRENT_TIMESTAMP + INTERVAL '1 hour')`,
-          [doc.doc_type === 'AGREEMENT' ? doc.id : null, doc.doc_type === 'COST_SHEET' ? doc.id : null, userId, message]
+          `INSERT INTO ho_notifications (agreement_id, cost_sheet_id, certification_id, notified_user_id, message, status, retry_count, next_retry_at)
+           VALUES ($1, $2, $3, $4, $5, 'PENDING_RETRY', 0, CURRENT_TIMESTAMP + INTERVAL '1 hour')`,
+          [
+            doc.doc_type === 'AGREEMENT' ? doc.id : null, 
+            doc.doc_type === 'COST_SHEET' ? doc.id : null, 
+            doc.doc_type === 'CERTIFICATION' ? doc.id : null,
+            userId, 
+            message
+          ]
         );
       }
     }

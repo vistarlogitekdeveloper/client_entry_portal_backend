@@ -40,6 +40,7 @@ const customerRoutes = require('./modules/customer/customer.routes');
 const hoCustomerRoutes = require('./modules/ho_customer/ho_customer.routes');
 const hoAgreementRoutes = require('./modules/ho_agreement/ho_agreement.routes');
 const hoCostSheetRoutes = require('./modules/ho_cost_sheet/ho_cost_sheet.routes');
+const hoCertificationRoutes = require('./modules/ho_certification/ho_certification.routes');
 
 app.use('/api/auth', authRoutes);
 app.use('/api/leads', leadRoutes);
@@ -52,5 +53,6 @@ app.use('/api/customers', customerRoutes);
 app.use('/api/ho-customers', hoCustomerRoutes);
 app.use('/api/agreements', hoAgreementRoutes);
 app.use('/api/cost-sheets', hoCostSheetRoutes);
+app.use('/api/certifications', hoCertificationRoutes);
 
 module.exports = app;

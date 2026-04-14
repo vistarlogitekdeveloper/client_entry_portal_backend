@@ -61,7 +61,7 @@ exports.create = async (data, creatorId) => {
     const result = await client.query(query, [
       agreement_name, customer_id, vendor_name, agreement_type, 
       start_date, expiry_date, renewal_frequency, responsible_person, 
-      department, location_project, status || 'Active', remarks, creatorId
+      department, location_project, (status || 'ACTIVE').toUpperCase(), remarks, creatorId
     ]);
     const agreement = result.rows[0];
 
@@ -210,7 +210,7 @@ exports.update = async (id, data) => {
     responsible_person, 
     department, 
     location_project, 
-    status, 
+    (status || 'ACTIVE').toUpperCase(), 
     remarks, 
     id
   ]);
