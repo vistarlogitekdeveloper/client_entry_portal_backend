@@ -5,9 +5,9 @@ exports.getStats = async (req, res) => {
     const { month, year } = req.query;
     
     const currentDate = new Date();
-    // Parse query params, allowing 0 for "All Time"
-    const filterMonth = (month !== undefined) ? parseInt(month) : (currentDate.getMonth() + 1);
-    const filterYear = (year !== undefined) ? parseInt(year) : currentDate.getFullYear();
+    // Parse query params, defaulting to 0 ("All Time")
+    const filterMonth = (month !== undefined) ? parseInt(month) : 0;
+    const filterYear = (year !== undefined) ? parseInt(year) : 0;
 
     const data = await service.getDashboardStats(req.user, filterMonth, filterYear);
     

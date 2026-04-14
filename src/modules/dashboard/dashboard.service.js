@@ -22,8 +22,7 @@ exports.getDashboardStats = async (actor, filterMonth, filterYear) => {
       COUNT(*) FILTER (WHERE status = 'ACTIVE')::INTEGER AS active_leads,
       COUNT(*) FILTER (WHERE final_status = 'WON')::INTEGER AS won_leads,
       COUNT(*) FILTER (WHERE final_status = 'LOST')::INTEGER AS lost_leads,
-      COALESCE(SUM(projected_value), 0)::NUMERIC AS total_pipeline_value,
-      (SELECT COUNT(*)::INTEGER FROM lead_master) AS grand_total_leads
+      COALESCE(SUM(projected_value), 0)::NUMERIC AS total_pipeline_value
     FROM lead_master
     ${commonWhere} ${actorWhere}
   `;
@@ -120,7 +119,7 @@ exports.getDashboardStats = async (actor, filterMonth, filterYear) => {
   ]);
 
   const kpi = kpiResult.rows[0] || {
-    total_leads: 0, active_leads: 0, won_leads: 0, lost_leads: 0, total_pipeline_value: 0, grand_total_leads: 0
+    total_leads: 0, active_leads: 0, won_leads: 0, lost_leads: 0, total_pipeline_value: 0
   };
   
   kpi.conversion_rate = kpi.total_leads > 0 
@@ -185,8 +184,7 @@ exports.getDashboardStats = async (actor, filterMonth, filterYear) => {
       lost_leads: parseInt(kpi.lost_leads),
       total_pipeline_value: parseFloat(kpi.total_pipeline_value),
       conversion_rate: kpi.conversion_rate,
-      average_deal_size: kpi.average_deal_size,
-      grand_total_leads: parseInt(kpi.grand_total_leads)
+      average_deal_size: kpi.average_deal_size
     },
     top_performers: {
       best_overall,
