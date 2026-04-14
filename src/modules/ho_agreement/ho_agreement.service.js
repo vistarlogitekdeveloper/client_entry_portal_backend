@@ -32,17 +32,18 @@ const sendInstantHONotification = async (docName, expiryDate) => {
 exports.create = async (data, creatorId) => {
   const { 
     agreement_name, 
-    customer_id, 
     vendor_name, 
     agreement_type, 
     start_date, 
     expiry_date, 
-    renewal_frequency, 
     responsible_person, 
-    department, 
     location_project, 
     status, 
-    remarks 
+    remarks,
+    // optional fields
+    customer_id    = null,
+    renewal_frequency = null,
+    department     = null
   } = data;
   
   const client = await pool.connect();
@@ -165,17 +166,18 @@ exports.findOne = async (id) => {
 exports.update = async (id, data) => {
   const { 
     agreement_name, 
-    customer_id, 
     vendor_name, 
     agreement_type, 
     start_date, 
     expiry_date, 
-    renewal_frequency, 
     responsible_person, 
-    department, 
     location_project, 
     status, 
-    remarks 
+    remarks,
+    // optional fields
+    customer_id       = null,
+    renewal_frequency = null,
+    department        = null
   } = data;
 
   const query = `
