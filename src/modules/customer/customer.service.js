@@ -109,3 +109,40 @@ exports.toggleCustomerActive = async (id, isActive, actor) => {
   const result = await pool.query(query, [isActive === undefined ? null : isActive, id]);
   return result.rows[0] || null;
 };
+
+exports.exportToExcel = async (actor, search) => {
+  const xlsx = require('xlsx');
+
+  // Reuse getCustomers logic but without pagination (though getCustomers is not paginated yet)
+  const customers = await exports.getCustomers(actor, search);
+
+  const data = customers.map((c) => ({
+    'Customer Name': c.customer_name,
+    'Person Name': c.person_name,
+    Email: c.email || 'N/A',
+    Mobile: c.mobile || 'N/A',
+    'Received Date': c.lead_rfq_enquiry_date ? new Date(c.lead_rfq_enquiry_date).toLocaleDateString() : 'N/A',
+    Status: c.status,
+    'Is Active': c.is_active ? 'YES' : 'NO',
+    'Created At': new Date(c.created_at).toLocaleString(),
+  }));
+
+  const worksheet = xlsx.utils.json_to_sheet(data);
+  const workbook = xlsx.utils.book_new();
+  xlsx.utils.book_append_sheet(workbook, worksheet, 'Customers');
+
+  // Column widths
+  const wscols = [
+    { wch: 30 }, // Customer Name
+    { wch: 25 }, // Person Name
+    { wch: 30 }, // Email
+    { wch: 15 }, // Mobile
+    { wch: 15 }, // Received Date
+    { wch: 12 }, // Status
+    { wch: 10 }, // Is Active
+    { wch: 20 }, // Created At
+  ];
+  worksheet['!cols'] = wscols;
+
+  return xlsx.write(workbook, { type: 'buffer', bookType: 'xlsx' });
+};

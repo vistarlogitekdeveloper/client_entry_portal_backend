@@ -53,3 +53,16 @@ exports.toggleActive = async (req, res) => {
     res.status(400).json({ success: false, message: err.message });
   }
 };
+
+exports.exportExcel = async (req, res) => {
+  try {
+    const buffer = await service.exportToExcel(req.user, req.query.search);
+
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', 'attachment; filename=customers.xlsx');
+
+    res.send(buffer);
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};

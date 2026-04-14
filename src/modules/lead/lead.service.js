@@ -462,3 +462,50 @@ exports.deleteLead = async (id, actor) => {
   const result = await pool.query(query, values);
   return result.rows[0];
 };
+
+exports.exportLeadsToExcel = async (filters, actor) => {
+  const xlsx = require('xlsx');
+
+  // Reuse getLeads logic
+  const leads = await exports.getLeads(filters, actor);
+
+  const data = leads.map((l) => ({
+    'Company Name': l.company_name,
+    'Contact Person': l.contact_person,
+    Email: l.email || 'N/A',
+    Mobile: l.mobile || 'N/A',
+    Status: l.status,
+    Region: l.region,
+    City: l.city || 'N/A',
+    'Business Scope': l.business_scope || 'N/A',
+    'Lead Received Date': l.lead_received_date ? new Date(l.lead_received_date).toLocaleDateString() : 'N/A',
+    'RFQ Submission Date': l.rfq_submission_date ? new Date(l.rfq_submission_date).toLocaleDateString() : 'N/A',
+    'Commercial Status': l.commercial_status,
+    'Projected Value': l.projected_value || 0,
+    'Created At': new Date(l.created_at).toLocaleString(),
+  }));
+
+  const worksheet = xlsx.utils.json_to_sheet(data);
+  const workbook = xlsx.utils.book_new();
+  xlsx.utils.book_append_sheet(workbook, worksheet, 'Leads');
+
+  // Column widths
+  const wscols = [
+    { wch: 30 }, // Company Name
+    { wch: 25 }, // Contact Person
+    { wch: 30 }, // Email
+    { wch: 15 }, // Mobile
+    { wch: 12 }, // Status
+    { wch: 15 }, // Region
+    { wch: 15 }, // City
+    { wch: 20 }, // Business Scope
+    { wch: 18 }, // Lead Received Date
+    { wch: 18 }, // RFQ Submission Date
+    { wch: 18 }, // Commercial Status
+    { wch: 15 }, // Projected Value
+    { wch: 20 }, // Created At
+  ];
+  worksheet['!cols'] = wscols;
+
+  return xlsx.write(workbook, { type: 'buffer', bookType: 'xlsx' });
+};

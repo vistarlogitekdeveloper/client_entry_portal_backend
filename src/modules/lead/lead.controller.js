@@ -84,3 +84,16 @@ exports.deleteLead = async (req, res) => {
     res.status(500).json({ success: false, message: err.message });
   }
 };
+
+exports.exportExcel = async (req, res) => {
+  try {
+    const buffer = await service.exportLeadsToExcel(req.query, req.user);
+
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', 'attachment; filename=leads.xlsx');
+
+    res.send(buffer);
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};

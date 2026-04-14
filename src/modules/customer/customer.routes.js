@@ -11,6 +11,9 @@ router.post('/', authMiddleware, roleMiddleware(['BD', 'MANAGER', 'ADMIN']), con
 // Get customers (supports optional `search` query)
 router.get('/', authMiddleware, roleMiddleware(['BD', 'MANAGER', 'ADMIN']), controller.getAll);
 
+// Export customers
+router.get('/export', authMiddleware, roleMiddleware(['BD', 'MANAGER', 'ADMIN']), controller.exportExcel);
+
 // Approve customer (ADMIN and MANAGER only)
 router.post('/:id/approve', authMiddleware, roleMiddleware(['ADMIN', 'MANAGER']), controller.approve);
 

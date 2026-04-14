@@ -8,6 +8,7 @@ router.get('/', authMiddleware, roleMiddleware(['BD', 'MANAGER', 'ADMIN']), cont
 router.get('/customers/names', authMiddleware, roleMiddleware(['BD', 'MANAGER', 'ADMIN']), controller.getUniqueCustomerNames);
 router.get('/:id', authMiddleware, roleMiddleware(['BD', 'MANAGER', 'ADMIN']), controller.getById);
 router.get('/:id/changes', authMiddleware, roleMiddleware(['BD', 'MANAGER', 'ADMIN']), controller.getChanges);
+router.get('/export', authMiddleware, roleMiddleware(['BD', 'MANAGER', 'ADMIN']), controller.exportExcel);
 router.post('/', authMiddleware, roleMiddleware(['BD', 'MANAGER', 'ADMIN']), controller.create);
 router.put('/:id', authMiddleware, roleMiddleware(['BD', 'MANAGER', 'ADMIN']), controller.update);
 router.delete('/:id', authMiddleware, roleMiddleware(['ADMIN']), controller.deleteLead);
