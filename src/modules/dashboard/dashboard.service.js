@@ -1,11 +1,19 @@
 const pool = require('../../config/db');
 
 exports.getDashboardStats = async (actor, filterMonth, filterYear) => {
-  const commonWhere = `
-    WHERE EXTRACT(MONTH FROM COALESCE(lead_received_date, created_at::date)) = $1 
-      AND EXTRACT(YEAR FROM COALESCE(lead_received_date, created_at::date)) = $2
-  `;
-  const commonParams = [filterMonth, filterYear];
+  const isAllTime = (filterMonth === 0 || filterYear === 0);
+  
+  let commonWhere = '';
+  let commonParams = [];
+
+  if (!isAllTime) {
+    commonWhere = `
+      WHERE EXTRACT(MONTH FROM COALESCE(lead_received_date, created_at::date)) = $1 
+        AND EXTRACT(YEAR FROM COALESCE(lead_received_date, created_at::date)) = $2
+    `;
+    commonParams = [filterMonth, filterYear];
+  }
+
   const actorWhere = ''; // No role-based filtering — all users see full data
 
   const kpiQuery = `
@@ -14,12 +22,29 @@ exports.getDashboardStats = async (actor, filterMonth, filterYear) => {
       COUNT(*) FILTER (WHERE status = 'ACTIVE')::INTEGER AS active_leads,
       COUNT(*) FILTER (WHERE final_status = 'WON')::INTEGER AS won_leads,
       COUNT(*) FILTER (WHERE final_status = 'LOST')::INTEGER AS lost_leads,
-      COALESCE(SUM(projected_value), 0)::NUMERIC AS total_pipeline_value
+      COALESCE(SUM(projected_value), 0)::NUMERIC AS total_pipeline_value,
+      (SELECT COUNT(*)::INTEGER FROM lead_master) AS grand_total_leads
     FROM lead_master
     ${commonWhere} ${actorWhere}
   `;
 
-  const leaderboardQuery = `
+  const leaderboardQuery = isAllTime 
+    ? `
+      SELECT
+        u.id AS user_id,
+        u.name AS bd_name,
+        u.role,
+        COUNT(lm.id)::INTEGER AS total_leads,
+        COUNT(lm.id) FILTER (WHERE lm.final_status = 'WON')::INTEGER AS won_leads,
+        COALESCE(SUM(lm.projected_value), 0)::NUMERIC AS total_value,
+        (SELECT COUNT(*)::INTEGER FROM lead_review_reminders r WHERE r.notified_user_id = u.id AND r.status = 'PENDING') AS pending_updates
+      FROM users u
+      LEFT JOIN lead_master lm ON lm.owner = u.id
+      WHERE u.role IN ('BD', 'MANAGER', 'ADMIN')
+      GROUP BY u.id, u.name, u.role
+      ORDER BY total_value DESC
+    `
+    : `
       SELECT
         u.id AS user_id,
         u.name AS bd_name,
@@ -60,8 +85,10 @@ exports.getDashboardStats = async (actor, filterMonth, filterYear) => {
     ORDER BY total_leads DESC
   `;
 
-  const monthlyWhere = `WHERE EXTRACT(YEAR FROM COALESCE(lead_received_date, created_at::date)) = $1`;
-  const monthlyParams = [filterYear];
+  const monthlyWhere = isAllTime 
+    ? '' 
+    : `WHERE EXTRACT(YEAR FROM COALESCE(lead_received_date, created_at::date)) = $1`;
+  const monthlyParams = isAllTime ? [] : [filterYear];
   const monthlyActorWhere = ''; // No role-based filtering
 
   const trendsQuery = `
@@ -76,7 +103,7 @@ exports.getDashboardStats = async (actor, filterMonth, filterYear) => {
     ORDER BY month ASC
   `;
 
-  const leaderboardParams = [filterMonth, filterYear];
+  const leaderboardParams = isAllTime ? [] : [filterMonth, filterYear];
 
   const [
     kpiResult,
@@ -93,7 +120,7 @@ exports.getDashboardStats = async (actor, filterMonth, filterYear) => {
   ]);
 
   const kpi = kpiResult.rows[0] || {
-    total_leads: 0, active_leads: 0, won_leads: 0, lost_leads: 0, total_pipeline_value: 0
+    total_leads: 0, active_leads: 0, won_leads: 0, lost_leads: 0, total_pipeline_value: 0, grand_total_leads: 0
   };
   
   kpi.conversion_rate = kpi.total_leads > 0 
@@ -158,7 +185,8 @@ exports.getDashboardStats = async (actor, filterMonth, filterYear) => {
       lost_leads: parseInt(kpi.lost_leads),
       total_pipeline_value: parseFloat(kpi.total_pipeline_value),
       conversion_rate: kpi.conversion_rate,
-      average_deal_size: kpi.average_deal_size
+      average_deal_size: kpi.average_deal_size,
+      grand_total_leads: parseInt(kpi.grand_total_leads)
     },
     top_performers: {
       best_overall,
