@@ -42,9 +42,16 @@ exports.create = async (data, creatorId) => {
     status, 
     remarks,
     // optional fields
-    customer_id    = null,
+    customer_id       = null,
     renewal_frequency = null,
-    department     = null
+    department        = null,
+    // Excel report fields
+    project_current_cost = null,
+    rent                 = null,
+    wh_area_sq_ft        = null,
+    lock_in_period       = null,
+    notice_period        = null,
+    agreement_period     = null
   } = data;
   
   const client = await pool.connect();
@@ -54,15 +61,17 @@ exports.create = async (data, creatorId) => {
       INSERT INTO ho_agreements (
         agreement_name, customer_id, vendor_name, agreement_type, 
         start_date, expiry_date, renewal_frequency, responsible_person, 
-        department, location_project, status, remarks, created_by
+        department, location_project, status, remarks, created_by,
+        project_current_cost, rent, wh_area_sq_ft, lock_in_period, notice_period, agreement_period
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
       RETURNING *;
     `;
     const result = await client.query(query, [
       agreement_name, customer_id, vendor_name, agreement_type, 
       start_date, expiry_date, renewal_frequency, responsible_person, 
-      department, location_project, (status || 'ACTIVE').toUpperCase(), remarks, creatorId
+      department, location_project, (status || 'ACTIVE').toUpperCase(), remarks, creatorId,
+      project_current_cost, rent, wh_area_sq_ft, lock_in_period, notice_period, agreement_period
     ]);
     const agreement = result.rows[0];
 
@@ -84,6 +93,7 @@ exports.create = async (data, creatorId) => {
     client.release();
   }
 };
+
 
 exports.findAll = async (filters = {}) => {
   let query = `
@@ -178,7 +188,14 @@ exports.update = async (id, data) => {
     // optional fields
     customer_id       = null,
     renewal_frequency = null,
-    department        = null
+    department        = null,
+    // Excel report fields
+    project_current_cost = null,
+    rent                 = null,
+    wh_area_sq_ft        = null,
+    lock_in_period       = null,
+    notice_period        = null,
+    agreement_period     = null
   } = data;
 
   const query = `
@@ -195,9 +212,15 @@ exports.update = async (id, data) => {
       department = $9, 
       location_project = $10, 
       status = $11, 
-      remarks = $12, 
+      remarks = $12,
+      project_current_cost = $13,
+      rent = $14,
+      wh_area_sq_ft = $15,
+      lock_in_period = $16,
+      notice_period = $17,
+      agreement_period = $18,
       updated_at = CURRENT_TIMESTAMP
-    WHERE id = $13
+    WHERE id = $19
     RETURNING *;
   `;
   const result = await pool.query(query, [
@@ -212,7 +235,13 @@ exports.update = async (id, data) => {
     department, 
     location_project, 
     (status || 'ACTIVE').toUpperCase(), 
-    remarks, 
+    remarks,
+    project_current_cost,
+    rent,
+    wh_area_sq_ft,
+    lock_in_period,
+    notice_period,
+    agreement_period,
     id
   ]);
   
@@ -228,6 +257,7 @@ exports.update = async (id, data) => {
   return result.rows[0];
 };
 
+
 exports.delete = async (id) => {
   const query = 'DELETE FROM ho_agreements WHERE id = $1 RETURNING *';
   const result = await pool.query(query, [id]);
@@ -237,40 +267,63 @@ exports.delete = async (id) => {
 exports.exportToExcel = async (filters = {}) => {
   const agreements = await exports.findAll(filters);
 
-  const data = agreements.map(a => ({
-    'Agreement Name': a.agreement_name,
-    'Vendor Name': a.vendor_name || 'N/A',
-    'Agreement Type': a.agreement_type || 'N/A',
-    'Location / Project': a.location_project || 'N/A',
-    'Responsible Person': a.responsible_person || 'N/A',
-    'Status': a.status,
-    'Start Date': a.start_date ? new Date(a.start_date).toLocaleDateString() : 'N/A',
-    'Expiry Date': a.expiry_date ? new Date(a.expiry_date).toLocaleDateString() : 'N/A',
-    'Remarks': a.remarks || ''
+  const data = agreements.map((a, index) => ({
+    'Sr.No.': index + 1,
+    'Name of Customer': a.customer_name || a.agreement_name || 'N/A',
+    'Location': a.location_project || 'N/A',
+    'Agreement Date': a.start_date ? new Date(a.start_date).toLocaleDateString('en-IN') : 'N/A',
+    'Agreement Renewal Date': a.expiry_date ? new Date(a.expiry_date).toLocaleDateString('en-IN') : 'N/A',
+    'Renewal Status': a.status || 'N/A',
+    'Project Current Cost': a.project_current_cost != null ? Number(a.project_current_cost) : '',
+    'Rent': a.rent != null ? Number(a.rent) : '',
+    'WH Area Sq. Ft.': a.wh_area_sq_ft != null ? Number(a.wh_area_sq_ft) : '',
+    'Lock In Period': a.lock_in_period || '',
+    'Notice Period': a.notice_period || '',
+    'Agreement Period': a.agreement_period || '',
+    'Remark': a.remarks || ''
   }));
 
   const wb = XLSX.utils.book_new();
   const ws = XLSX.utils.json_to_sheet(data);
 
-  // Set column widths
-  const wscols = [
-    { wch: 30 }, // Agreement Name
-    { wch: 25 }, // Vendor Name
-    { wch: 20 }, // Agreement Type
-    { wch: 25 }, // Location / Project
-    { wch: 20 }, // Responsible Person
-    { wch: 12 }, // Status
-    { wch: 15 }, // Start Date
-    { wch: 15 }, // Expiry Date
-    { wch: 40 }  // Remarks
+  // Style the header row (bold + background colour)
+  const headerRange = XLSX.utils.decode_range(ws['!ref']);
+  for (let col = headerRange.s.c; col <= headerRange.e.c; col++) {
+    const cellAddr = XLSX.utils.encode_cell({ r: 0, c: col });
+    if (!ws[cellAddr]) continue;
+    ws[cellAddr].s = {
+      font: { bold: true, color: { rgb: 'FFFFFF' } },
+      fill: { fgColor: { rgb: '2E4057' } },
+      alignment: { horizontal: 'center', wrapText: true }
+    };
+  }
+
+  // Set column widths matching the requested Excel format
+  ws['!cols'] = [
+    { wch: 7  }, // Sr.No.
+    { wch: 28 }, // Name of Customer
+    { wch: 20 }, // Location
+    { wch: 18 }, // Agreement Date
+    { wch: 22 }, // Agreement Renewal Date
+    { wch: 16 }, // Renewal Status
+    { wch: 20 }, // Project Current Cost
+    { wch: 14 }, // Rent
+    { wch: 16 }, // WH Area Sq. Ft.
+    { wch: 14 }, // Lock In Period
+    { wch: 14 }, // Notice Period
+    { wch: 16 }, // Agreement Period
+    { wch: 35 }  // Remark
   ];
-  ws['!cols'] = wscols;
+
+  // Freeze top header row
+  ws['!freeze'] = { xSplit: 0, ySplit: 1 };
 
   XLSX.utils.book_append_sheet(wb, ws, 'Agreements');
   
   const buffer = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
   return buffer;
 };
+
 
 exports.addFile = async (agreementId, fileName, fileType, fileData) => {
   const query = `

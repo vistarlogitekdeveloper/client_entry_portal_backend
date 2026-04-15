@@ -117,7 +117,14 @@ const initDb = async () => {
       'location_project VARCHAR(255)',
       'remarks TEXT',
       'department VARCHAR(100)',
-      'created_by UUID REFERENCES users(id) ON DELETE SET NULL'
+      'created_by UUID REFERENCES users(id) ON DELETE SET NULL',
+      // Excel report fields
+      'project_current_cost NUMERIC(15,2)',
+      'rent NUMERIC(15,2)',
+      'wh_area_sq_ft NUMERIC(10,2)',
+      'lock_in_period VARCHAR(100)',
+      'notice_period VARCHAR(100)',
+      'agreement_period VARCHAR(100)'
     ];
     for (const col of agreementCols) {
       await execute(`ALTER TABLE ho_agreements ADD COLUMN IF NOT EXISTS ${col};`, `Agreement ${col.split(' ')[0]} column`);
