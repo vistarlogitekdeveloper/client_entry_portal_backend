@@ -264,66 +264,110 @@ exports.delete = async (id) => {
   return result.rows[0];
 };
 
+const ExcelJS = require('exceljs');
+
 exports.exportToExcel = async (filters = {}) => {
   const agreements = await exports.findAll(filters);
 
-  const data = agreements.map((a, index) => ({
-    'Sr.No.': index + 1,
-    'Name of Customer': a.customer_name || a.agreement_name || 'N/A',
-    'Location': a.location_project || 'N/A',
-    'Agreement Date': a.start_date ? new Date(a.start_date).toLocaleDateString('en-IN') : 'N/A',
-    'Agreement Renewal Date': a.expiry_date ? new Date(a.expiry_date).toLocaleDateString('en-IN') : 'N/A',
-    'Renewal Status': a.status || 'N/A',
-    'Project Current Cost': a.project_current_cost != null ? Number(a.project_current_cost) : '',
-    'Rent': a.rent != null ? Number(a.rent) : '',
-    'WH Area Sq. Ft.': a.wh_area_sq_ft != null ? Number(a.wh_area_sq_ft) : '',
-    'Lock In Period': a.lock_in_period || '',
-    'Notice Period': a.notice_period || '',
-    'Agreement Period': a.agreement_period || '',
-    'Remark': a.remarks || ''
-  }));
+  const workbook = new ExcelJS.Workbook();
+  const worksheet = workbook.addWorksheet('Agreements');
 
-  const wb = XLSX.utils.book_new();
-  const ws = XLSX.utils.json_to_sheet(data);
-
-  // Style the header row (bold + background colour)
-  const headerRange = XLSX.utils.decode_range(ws['!ref']);
-  for (let col = headerRange.s.c; col <= headerRange.e.c; col++) {
-    const cellAddr = XLSX.utils.encode_cell({ r: 0, c: col });
-    if (!ws[cellAddr]) continue;
-    ws[cellAddr].s = {
-      font: { bold: true, color: { rgb: 'FFFFFF' } },
-      fill: { fgColor: { rgb: '2E4057' } },
-      alignment: { horizontal: 'center', wrapText: true }
-    };
-  }
-
-  // Set column widths matching the requested Excel format
-  ws['!cols'] = [
-    { wch: 7  }, // Sr.No.
-    { wch: 28 }, // Name of Customer
-    { wch: 20 }, // Location
-    { wch: 18 }, // Agreement Date
-    { wch: 22 }, // Agreement Renewal Date
-    { wch: 16 }, // Renewal Status
-    { wch: 20 }, // Project Current Cost
-    { wch: 14 }, // Rent
-    { wch: 16 }, // WH Area Sq. Ft.
-    { wch: 14 }, // Lock In Period
-    { wch: 14 }, // Notice Period
-    { wch: 16 }, // Agreement Period
-    { wch: 35 }  // Remark
+  // Define columns
+  worksheet.columns = [
+    { header: 'Sr.No.', key: 'sr_no', width: 7 },
+    { header: 'Name of Customer', key: 'customer', width: 28 },
+    { header: 'Location', key: 'location', width: 20 },
+    { header: 'Agreement Date', key: 'start_date', width: 18 },
+    { header: 'Agreement Renewal Date', key: 'expiry_date', width: 22 },
+    { header: 'Renewal Status', key: 'status', width: 16 },
+    { header: 'Project Current Cost', key: 'project_cost', width: 20 },
+    { header: 'Rent', key: 'rent', width: 14 },
+    { header: 'WH Area Sq. Ft.', key: 'wh_area', width: 16 },
+    { header: 'Lock In Period', key: 'lock_in', width: 14 },
+    { header: 'Notice Period', key: 'notice', width: 14 },
+    { header: 'Agreement Period', key: 'agreement_period', width: 16 },
+    { header: 'Remark', key: 'remarks', width: 35 }
   ];
 
-  // Freeze top header row
-  ws['!freeze'] = { xSplit: 0, ySplit: 1 };
+  // Style header row
+  worksheet.getRow(1).eachCell((cell) => {
+    cell.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+    cell.fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'FF2E4057' }
+    };
+    cell.alignment = { horizontal: 'center', wrapText: true };
+    cell.border = {
+      top: { style: 'thin' },
+      left: { style: 'thin' },
+      bottom: { style: 'thin' },
+      right: { style: 'thin' }
+    };
+  });
 
-  XLSX.utils.book_append_sheet(wb, ws, 'Agreements');
-  
-  const buffer = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
-  return buffer;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  // Add rows
+  agreements.forEach((a, index) => {
+    const row = worksheet.addRow({
+      sr_no: index + 1,
+      customer: a.customer_name || a.agreement_name || 'N/A',
+      location: a.location_project || 'N/A',
+      start_date: a.start_date ? new Date(a.start_date).toLocaleDateString('en-IN') : 'N/A',
+      expiry_date: a.expiry_date ? new Date(a.expiry_date).toLocaleDateString('en-IN') : 'N/A',
+      status: a.status || 'N/A',
+      project_cost: a.project_current_cost != null ? Number(a.project_current_cost) : '',
+      rent: a.rent != null ? Number(a.rent) : '',
+      wh_area: a.wh_area_sq_ft != null ? Number(a.wh_area_sq_ft) : '',
+      lock_in: a.lock_in_period || '',
+      notice: a.notice_period || '',
+      agreement_period: a.agreement_period || '',
+      remarks: a.remarks || ''
+    });
+
+    let rowColor = null; // default
+
+    if (a.expiry_date) {
+      const expiry = new Date(a.expiry_date);
+      expiry.setHours(0, 0, 0, 0);
+      const diffDays = Math.ceil((expiry - today) / (1000 * 60 * 60 * 24));
+
+      if (a.status?.toUpperCase() === 'EXPIRED' || diffDays < 0) {
+        // Red for expired
+        rowColor = 'FFFFCDD2'; // light red
+      } else if (diffDays <= 30) {
+        // Yellow for expiring in 30 days
+        rowColor = 'FFFFF9C4'; // light yellow
+      }
+    }
+
+    // Apply color and alignment to all cells in the row
+    row.eachCell((cell) => {
+      cell.alignment = { vertical: 'middle', wrapText: true };
+      cell.border = {
+        top: { style: 'hair' },
+        left: { style: 'hair' },
+        bottom: { style: 'hair' },
+        right: { style: 'hair' }
+      };
+      if (rowColor) {
+        cell.fill = {
+          type: 'pattern',
+          pattern: 'solid',
+          fgColor: { argb: rowColor }
+        };
+      }
+    });
+  });
+
+  worksheet.views = [
+    { state: 'frozen', xSplit: 0, ySplit: 1 }
+  ];
+
+  return worksheet.workbook.xlsx.writeBuffer();
 };
-
 
 exports.addFile = async (agreementId, fileName, fileType, fileData) => {
   const query = `
