@@ -18,8 +18,25 @@ const getWeekStartDate = (dateInput) => {
   return `${y}-${m}-${dd}`;
 };
 
+/**
+ * Utility to convert string values in lead data to UPPERCASE,
+ * excluding technically sensitive fields like email and IDs.
+ */
+const capitalizeLeadData = (data) => {
+  if (!data) return data;
+  const exclude = ['email', 'owner', 'lead_by'];
+  const result = { ...data };
+  for (const key of Object.keys(result)) {
+    if (!exclude.includes(key) && typeof result[key] === 'string') {
+      result[key] = result[key].toUpperCase();
+    }
+  }
+  return result;
+};
+
 // ✅ CREATE
-exports.createLead = async (data, actor) => {
+exports.createLead = async (inputData, actor) => {
+  const data = capitalizeLeadData(inputData);
   const owner = isBD(actor) ? actor.id : (data.owner ?? null);
   const leadBy = data.lead_by ?? actor?.id ?? null;
 
@@ -132,8 +149,11 @@ exports.getLeads = async (filters, actor) => {
   let values = [];
   let i = 1;
 
-  // REMOVED owner filtering: BDs and all users can now see ALL leads.
-
+  // REMOVED built-in owner access restriction, but we allow filtering by owner explicitly
+  if (filters.owner) {
+    query += ` AND owner = $${i++}`;
+    values.push(filters.owner);
+  }
 
   if (filters.region) {
     query += ` AND region = $${i++}`;
@@ -199,7 +219,8 @@ exports.getLeadById = async (id, actor) => {
 
 // ✅ UPDATE (SAFE, supports setting fields to null)
 // Updates only keys present in `data` (even if value is null).
-exports.updateLead = async (id, data, actor) => {
+exports.updateLead = async (id, inputData, actor) => {
+  const data = capitalizeLeadData(inputData);
   const allowedFields = {
     status: 'status',
     priority: 'priority',
@@ -469,6 +490,24 @@ exports.exportLeadsToExcel = async (filters, actor) => {
   // Reuse getLeads logic
   const leads = await exports.getLeads(filters, actor);
 
+  // Fetch weekly comments (reviews) for these leads
+  const leadIds = leads.map(l => l.id);
+  let reviewsMap = {};
+  if (leadIds.length > 0) {
+    const reviewsRes = await pool.query(`
+      SELECT lead_id, week_start_date, remarks
+      FROM lead_reviews
+      WHERE lead_id = ANY($1) AND remarks IS NOT NULL AND remarks <> ''
+      ORDER BY week_start_date DESC
+    `, [leadIds]);
+
+    for (const row of reviewsRes.rows) {
+      if (!reviewsMap[row.lead_id]) reviewsMap[row.lead_id] = [];
+      const dateStr = new Date(row.week_start_date).toISOString().slice(0, 10);
+      reviewsMap[row.lead_id].push(`[${dateStr}] ${row.remarks}`);
+    }
+  }
+
   const data = leads.map((l) => ({
     'Company Name': l.company_name,
     'Contact Person': l.contact_person,
@@ -483,6 +522,7 @@ exports.exportLeadsToExcel = async (filters, actor) => {
     'Commercial Status': l.commercial_status,
     'Projected Value': l.projected_value || 0,
     'Created At': new Date(l.created_at).toLocaleString(),
+    'Weekly Comments': reviewsMap[l.id] ? reviewsMap[l.id].join('\\n') : 'N/A',
   }));
 
   const worksheet = xlsx.utils.json_to_sheet(data);
@@ -504,6 +544,7 @@ exports.exportLeadsToExcel = async (filters, actor) => {
     { wch: 18 }, // Commercial Status
     { wch: 15 }, // Projected Value
     { wch: 20 }, // Created At
+    { wch: 40 }, // Weekly Comments
   ];
   worksheet['!cols'] = wscols;
 

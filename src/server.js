@@ -3,6 +3,7 @@ const app = require('./app');
 const initDb = require('./config/initDb');
 const { startWeeklyReminderScheduler } = require('./jobs/weekly-reminder.job');
 const { startHOScheduler } = require('./jobs/ho-expiry-reminder.job');
+const { startLeadReportScheduler } = require('./jobs/lead-report.job');
 
 const PORT = process.env.PORT || 5000;
 
@@ -13,5 +14,6 @@ initDb()
       console.log(`🚀 Server running on port ${PORT}`);
       startWeeklyReminderScheduler();
       startHOScheduler();
+      startLeadReportScheduler();
     });
   });

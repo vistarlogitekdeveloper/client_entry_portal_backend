@@ -19,15 +19,19 @@ const transporter = nodemailer.createTransport({
  * @param {string} subject - Email subject
  * @param {string} text - Plain text body
  * @param {string} html - HTML body (optional)
+ * @param {string|string[]} cc - CC email(s) (optional)
+ * @param {Object[]} attachments - Attachments array (optional)
  */
-const sendEmail = async (to, subject, text, html = null) => {
+const sendEmail = async (to, subject, text, html = null, cc = null, attachments = []) => {
   try {
     const info = await transporter.sendMail({
       from: `"${process.env.SMTP_FROM_NAME || 'Portal Alerts'}" <${process.env.SMTP_USER}>`,
-      to: typeof to === 'array' ? to.join(', ') : to,
+      to: Array.isArray(to) ? to.join(', ') : to,
+      cc: Array.isArray(cc) ? cc.join(', ') : cc,
       subject,
       text,
       html: html || text,
+      attachments,
     });
     console.log('[Email] Sent: %s', info.messageId);
     return info;
