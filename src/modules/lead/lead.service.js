@@ -485,7 +485,7 @@ exports.deleteLead = async (id, actor) => {
 };
 
 exports.exportLeadsToExcel = async (filters, actor) => {
-  const xlsx = require('xlsx');
+  const ExcelJS = require('exceljs');
 
   // Reuse getLeads logic
   const leads = await exports.getLeads(filters, actor);
@@ -508,45 +508,91 @@ exports.exportLeadsToExcel = async (filters, actor) => {
     }
   }
 
-  const data = leads.map((l) => ({
-    'Company Name': l.company_name,
-    'Contact Person': l.contact_person,
-    Email: l.email || 'N/A',
-    Mobile: l.mobile || 'N/A',
-    Status: l.status,
-    Region: l.region,
-    City: l.city || 'N/A',
-    'Business Scope': l.business_scope || 'N/A',
-    'Lead Received Date': l.lead_received_date ? new Date(l.lead_received_date).toLocaleDateString() : 'N/A',
-    'RFQ Submission Date': l.rfq_submission_date ? new Date(l.rfq_submission_date).toLocaleDateString() : 'N/A',
-    'Commercial Status': l.commercial_status,
-    'Projected Value': l.projected_value || 0,
-    'Created At': new Date(l.created_at).toLocaleString(),
-    'Weekly Comments': reviewsMap[l.id] ? reviewsMap[l.id].join('\\n') : 'N/A',
-  }));
+  // Find duplicates across all leads to process formatting later
+  const counts = { company: {}, contact: {}, email: {}, mobile: {} };
+  
+  const norm = (str) => String(str || '').toLowerCase().trim();
+  
+  leads.forEach(l => {
+    const c = norm(l.company_name);
+    const p = norm(l.contact_person);
+    const e = norm(l.email);
+    const m = norm(l.mobile);
 
-  const worksheet = xlsx.utils.json_to_sheet(data);
-  const workbook = xlsx.utils.book_new();
-  xlsx.utils.book_append_sheet(workbook, worksheet, 'Leads');
+    if (c) counts.company[c] = (counts.company[c] || 0) + 1;
+    if (p) counts.contact[p] = (counts.contact[p] || 0) + 1;
+    if (e && e !== 'n/a') counts.email[e] = (counts.email[e] || 0) + 1;
+    if (m && m !== 'n/a') counts.mobile[m] = (counts.mobile[m] || 0) + 1;
+  });
 
-  // Column widths
-  const wscols = [
-    { wch: 30 }, // Company Name
-    { wch: 25 }, // Contact Person
-    { wch: 30 }, // Email
-    { wch: 15 }, // Mobile
-    { wch: 12 }, // Status
-    { wch: 15 }, // Region
-    { wch: 15 }, // City
-    { wch: 20 }, // Business Scope
-    { wch: 18 }, // Lead Received Date
-    { wch: 18 }, // RFQ Submission Date
-    { wch: 18 }, // Commercial Status
-    { wch: 15 }, // Projected Value
-    { wch: 20 }, // Created At
-    { wch: 40 }, // Weekly Comments
+  const workbook = new ExcelJS.Workbook();
+  const worksheet = workbook.addWorksheet('Leads');
+
+  worksheet.columns = [
+    { header: 'Company Name', key: 'company', width: 30 },
+    { header: 'Contact Person', key: 'contact', width: 25 },
+    { header: 'Email', key: 'email', width: 30 },
+    { header: 'Mobile', key: 'mobile', width: 15 },
+    { header: 'Status', key: 'status', width: 12 },
+    { header: 'Region', key: 'region', width: 15 },
+    { header: 'City', key: 'city', width: 15 },
+    { header: 'Business Scope', key: 'scope', width: 20 },
+    { header: 'Lead Received Date', key: 'received', width: 18 },
+    { header: 'RFQ Submission Date', key: 'rfq', width: 18 },
+    { header: 'Commercial Status', key: 'commercial', width: 18 },
+    { header: 'Projected Value', key: 'value', width: 15 },
+    { header: 'Created At', key: 'created', width: 20 },
+    { header: 'Weekly Comments', key: 'comments', width: 40 },
   ];
-  worksheet['!cols'] = wscols;
 
-  return xlsx.write(workbook, { type: 'buffer', bookType: 'xlsx' });
+  leads.forEach(l => {
+    worksheet.addRow({
+      company: l.company_name,
+      contact: l.contact_person,
+      email: l.email || 'N/A',
+      mobile: l.mobile || 'N/A',
+      status: l.status,
+      region: l.region,
+      city: l.city || 'N/A',
+      scope: l.business_scope || 'N/A',
+      received: l.lead_received_date ? new Date(l.lead_received_date).toLocaleDateString() : 'N/A',
+      rfq: l.rfq_submission_date ? new Date(l.rfq_submission_date).toLocaleDateString() : 'N/A',
+      commercial: l.commercial_status,
+      value: l.projected_value || 0,
+      created: new Date(l.created_at).toLocaleString(),
+      comments: reviewsMap[l.id] ? reviewsMap[l.id].join('\\n') : 'N/A',
+    });
+  });
+
+  worksheet.eachRow((row, rowNumber) => {
+    // Word wrap and dynamic height alignment for all text
+    row.eachCell((cell) => {
+      cell.alignment = { wrapText: true, vertical: 'top', horizontal: 'left' };
+    });
+
+    if (rowNumber === 1) {
+      row.font = { bold: true };
+      return; 
+    }
+
+    const highlightCell = (cell) => {
+      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFC7CE' } };
+      cell.font = { color: { argb: 'FF9C0006' } };
+    };
+
+    const cCell = row.getCell('company');
+    if (counts.company[norm(cCell.value)] > 1) highlightCell(cCell);
+
+    const pCell = row.getCell('contact');
+    if (counts.contact[norm(pCell.value)] > 1) highlightCell(pCell);
+
+    const eCell = row.getCell('email');
+    if (norm(eCell.value) !== 'n/a' && counts.email[norm(eCell.value)] > 1) highlightCell(eCell);
+
+    const mCell = row.getCell('mobile');
+    if (norm(mCell.value) !== 'n/a' && counts.mobile[norm(mCell.value)] > 1) highlightCell(mCell);
+  });
+
+  const buffer = await workbook.xlsx.writeBuffer();
+  return buffer;
 };
