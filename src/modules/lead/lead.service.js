@@ -1,7 +1,9 @@
 const pool = require('../../config/db');
 const { isBD } = require('../../utils/role.utils');
+const path = require('path');
 const userService = require('../user/user.service');
 const { sendMulticastNotification, sendPushNotification } = require('../../utils/notification.utils');
+const { sendEmail } = require('../../utils/email.utils');
 
 // Monday (start) week_start_date in LOCAL time.
 const getWeekStartDate = (dateInput) => {
@@ -32,6 +34,75 @@ const capitalizeLeadData = (data) => {
     }
   }
   return result;
+};
+
+/**
+ * Generates a professional HTML template for a new lead notification.
+ */
+const generateNewLeadEmailHtml = (lead, creatorName) => {
+  const logoUrl = 'cid:logo'; 
+
+  return `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; }
+        .container { max-width: 600px; margin: 20px auto; border: 1px solid #eee; border-top: 8px solid #28A745; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
+        .header { background-color: #f8f8f8; padding: 25px; text-align: center; border-bottom: 1px solid #eee; }
+        .logo { max-height: 80px; margin-bottom: 10px; }
+        .content { padding: 30px; }
+        .success-badge { display: inline-block; padding: 6px 15px; background-color: #28A745; color: white; font-weight: bold; border-radius: 20px; font-size: 12px; margin-bottom: 20px; text-transform: uppercase; letter-spacing: 1px; }
+        h2 { margin-top: 0; color: #2c3e50; font-size: 22px; }
+        .details-table { width: 100%; border-collapse: collapse; margin-top: 20px; background-color: #fafafa; border-radius: 6px; }
+        .details-table td { padding: 12px 15px; border-bottom: 1px solid #eee; }
+        .label { font-weight: bold; color: #666; width: 40%; }
+        .value { color: #222; font-weight: 500; }
+        .footer { background-color: #f8f8f8; padding: 20px; text-align: center; font-size: 12px; color: #888; border-top: 1px solid #eee; }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="header">
+          <img src="${logoUrl}" alt="Vistar Logitek" class="logo">
+          <div style="font-size: 14px; color: #666; font-weight: 600;">Client Entry Portal</div>
+        </div>
+        <div class="content">
+          <div class="success-badge">New Lead Alert</div>
+          <h2>Lead Successfully Created</h2>
+          <p>A new lead has been registered in the portal by <strong>${creatorName}</strong>.</p>
+          
+          <table class="details-table">
+            <tr>
+              <td class="label">Company Name</td>
+              <td class="value">${lead.company_name}</td>
+            </tr>
+            <tr>
+              <td class="label">Contact Person</td>
+              <td class="value">${lead.contact_person}</td>
+            </tr>
+            <tr>
+              <td class="label">Region / City</td>
+              <td class="value">${lead.region} / ${lead.city || 'N/A'}</td>
+            </tr>
+            <tr>
+              <td class="label">Business Scope</td>
+              <td class="value">${lead.business_scope || 'N/A'}</td>
+            </tr>
+          </table>
+
+          <p style="margin-top: 30px; font-size: 13px; color: #777;">
+            Please log in to the portal to view full details and manage the lead.
+          </p>
+        </div>
+        <div class="footer">
+          &copy; ${new Date().getFullYear()} Vistar Logitek Private Limited. All rights reserved.<br>
+          This is an automated system message.
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
 };
 
 // ✅ CREATE
@@ -137,7 +208,37 @@ exports.createLead = async (inputData, actor) => {
       );
     }
   } catch (err) {
-    console.error('Failed to send new lead notifications:', err.message);
+    console.error('Failed to send new lead push notifications:', err.message);
+  }
+
+  // Real-time Email Notifications for ADMINs, Creator (cc), and Dev (cc)
+  try {
+    const [admins, creator] = await Promise.all([
+      userService.getAdminEmails(),
+      userService.findOne(actor.id)
+    ]);
+
+    const toRecipients = admins;
+    const ccRecipients = ['Flutter.developer@vistarlogitek.com'];
+    if (creator && creator.email) {
+      ccRecipients.push(creator.email);
+    }
+
+    if (toRecipients.length > 0) {
+      const subject = `New Lead Created: ${lead.company_name}`;
+      const htmlTemplate = generateNewLeadEmailHtml(lead, creator ? creator.name : 'Unknown');
+      const attachments = [
+        {
+          filename: 'logo.png',
+          path: path.join(process.cwd(), 'assets', 'logo.png'),
+          cid: 'logo'
+        }
+      ];
+
+      await sendEmail(toRecipients, subject, `New lead: ${lead.company_name}`, htmlTemplate, ccRecipients, attachments);
+    }
+  } catch (err) {
+    console.error('Failed to send new lead email notification:', err.message);
   }
 
   return lead;

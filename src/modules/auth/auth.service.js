@@ -5,7 +5,7 @@ const jwt = require('jsonwebtoken');
 exports.login = async (email, password) => {
   const result = await pool.query(
     'SELECT * FROM users WHERE email = $1',
-    [email]
+    [email.toLowerCase().trim()]
   );
   
   if (result.rows.length === 0) {

@@ -177,3 +177,15 @@ exports.getBDAndAdminEmails = async () => {
   const result = await pool.query(query);
   return result.rows.map(r => r.email);
 };
+
+exports.getAdminEmails = async () => {
+  const query = `
+    SELECT email
+    FROM users
+    WHERE role = 'ADMIN'
+      AND email IS NOT NULL
+      AND email <> ''
+  `;
+  const result = await pool.query(query);
+  return result.rows.map(r => r.email);
+};
