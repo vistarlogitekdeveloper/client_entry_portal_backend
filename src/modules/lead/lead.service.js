@@ -310,7 +310,8 @@ exports.getLeadById = async (id, actor) => {
   const values = [id];
 
   if (isBD(actor)) {
-    query += ` AND owner = $2`;
+    // BD users can view leads they own OR leads they sourced (lead_by)
+    query += ` AND (owner = $2 OR lead_by = $2)`;
     values.push(actor.id);
   }
 
@@ -397,7 +398,8 @@ exports.updateLead = async (id, inputData, actor) => {
     let selectQuery = `SELECT * FROM lead_master WHERE id = $1`;
     const selectValues = [id];
     if (isBD(actor)) {
-      selectQuery += ` AND owner = $2`;
+      // BD users can edit leads they own OR leads they sourced (lead_by)
+      selectQuery += ` AND (owner = $2 OR lead_by = $2)`;
       selectValues.push(actor.id);
     }
 
@@ -442,7 +444,8 @@ exports.updateLead = async (id, inputData, actor) => {
     `;
 
     if (isBD(actor)) {
-      updateQuery += ` AND owner = $${idParamIndex + 1}`;
+      // BD users can update leads they own OR leads they sourced (lead_by)
+      updateQuery += ` AND (owner = $${idParamIndex + 1} OR lead_by = $${idParamIndex + 1})`;
     }
 
     updateQuery += ` RETURNING *;`;
@@ -527,7 +530,8 @@ exports.getLeadChanges = async (id, actor) => {
   let ownerFilter = '';
 
   if (isBD(actor)) {
-    ownerFilter = ` AND lm.owner = $2`;
+    // BD users can view change history for leads they own OR leads they sourced (lead_by)
+    ownerFilter = ` AND (lm.owner = $2 OR lm.lead_by = $2)`;
     values.push(actor.id);
   }
 
