@@ -25,6 +25,7 @@ exports.getAllUsersAdmin = async () => {
   const query = `
     SELECT id, name, email, role, created_at
     FROM users
+    WHERE role != 'HEAD OFFICE'
     ORDER BY created_at DESC
   `;
   const result = await pool.query(query);
