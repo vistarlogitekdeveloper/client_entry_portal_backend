@@ -64,7 +64,6 @@ const generateNewLeadEmailHtml = (lead, creatorName) => {
     <body>
       <div class="container">
         <div class="header">
-          <img src="${logoUrl}" alt="Vistar Logitek" class="logo">
           <div style="font-size: 14px; color: #666; font-weight: 600;">Client Entry Portal</div>
         </div>
         <div class="content">
@@ -244,15 +243,7 @@ exports.createLead = async (inputData, actor) => {
     if (toRecipients.length > 0) {
       const subject = `New Lead Created: ${lead.company_name} (by ${creatorName})`;
       const htmlTemplate = generateNewLeadEmailHtml(lead, creatorName);
-      const attachments = [
-        {
-          filename: 'logo.png',
-          path: path.join(process.cwd(), 'assets', 'logo.png'),
-          cid: 'logo'
-        }
-      ];
-
-      await sendEmail(toRecipients, subject, `New lead: ${lead.company_name}`, htmlTemplate, ccRecipients, attachments);
+      await sendEmail(toRecipients, subject, `New lead: ${lead.company_name}`, htmlTemplate, ccRecipients);
     }
   } catch (err) {
     console.error('Failed to send new lead email notification:', err.message);
