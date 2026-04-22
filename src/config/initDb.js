@@ -66,10 +66,19 @@ const initDb = async () => {
         projected_month DATE,
         progress_status VARCHAR(100) CHECK (progress_status IN ('PLANNING', 'EXECUTION', 'HOLD', 'COMPLETED')),
         final_status VARCHAR(50) CHECK (final_status IN ('WON', 'LOST', 'PENDING')),
+        commercial_status_reason TEXT,
+        final_status_reason TEXT,
+        progress_status_reason TEXT,
+        study_status_reason TEXT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
     `, 'Lead master table');
+
+    await execute(`ALTER TABLE lead_master ADD COLUMN IF NOT EXISTS commercial_status_reason TEXT;`, 'commercial_status_reason column');
+    await execute(`ALTER TABLE lead_master ADD COLUMN IF NOT EXISTS final_status_reason TEXT;`, 'final_status_reason column');
+    await execute(`ALTER TABLE lead_master ADD COLUMN IF NOT EXISTS progress_status_reason TEXT;`, 'progress_status_reason column');
+    await execute(`ALTER TABLE lead_master ADD COLUMN IF NOT EXISTS study_status_reason TEXT;`, 'study_status_reason column');
 
     await execute(`
       CREATE TABLE IF NOT EXISTS customer_master (

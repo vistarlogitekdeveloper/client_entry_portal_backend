@@ -118,9 +118,10 @@ exports.createLead = async (inputData, actor) => {
       city, region, business_scope,
       lead_received_date, rfq_submission_date, lead_by, owner,
       study_status, commercial_status,
-      projected_value, projected_month, progress_status, final_status
+      projected_value, projected_month, progress_status, final_status,
+      commercial_status_reason, final_status_reason, progress_status_reason, study_status_reason
     )
-    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20)
+    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24)
     RETURNING *;
   `;
 
@@ -144,7 +145,11 @@ exports.createLead = async (inputData, actor) => {
     data.projected_value ?? null,
     data.projected_month ?? null,
     data.progress_status ?? null,
-    data.final_status ?? null
+    data.final_status ?? null,
+    data.commercial_status_reason ?? null,
+    data.final_status_reason ?? null,
+    data.progress_status_reason ?? null,
+    data.study_status_reason ?? null
   ];
 
   const result = await pool.query(query, values);
@@ -353,7 +358,11 @@ exports.updateLead = async (id, inputData, actor) => {
     projected_value: 'projected_value',
     projected_month: 'projected_month',
     progress_status: 'progress_status',
-    final_status: 'final_status'
+    final_status: 'final_status',
+    commercial_status_reason: 'commercial_status_reason',
+    final_status_reason: 'final_status_reason',
+    progress_status_reason: 'progress_status_reason',
+    study_status_reason: 'study_status_reason'
   };
 
   const setParts = [];

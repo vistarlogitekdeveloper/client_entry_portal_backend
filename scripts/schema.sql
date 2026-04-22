@@ -37,6 +37,10 @@ CREATE TABLE IF NOT EXISTS lead_master (
     projected_month DATE,
     progress_status VARCHAR(100) CHECK (progress_status IN ('PLANNING', 'EXECUTION', 'HOLD', 'COMPLETED')),
     final_status VARCHAR(50) CHECK (final_status IN ('WON', 'LOST', 'PENDING')),
+    commercial_status_reason TEXT,
+    final_status_reason TEXT,
+    progress_status_reason TEXT,
+    study_status_reason TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
