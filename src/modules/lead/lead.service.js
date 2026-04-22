@@ -191,19 +191,26 @@ exports.createLead = async (inputData, actor) => {
     }
   }
 
-  // Push Notifications for ADMIN/MANAGER, Owner, and Creator on new lead
+  // Consolidate user lookups for notifications
+  let creatorProfile = null;
+  try {
+    creatorProfile = await userService.findOne(actor.id);
+  } catch (err) {
+    console.warn('Could not fetch creator profile for notifications:', err.message);
+  }
+  const creatorName = creatorProfile?.name || 'Unknown';
+
+  // 1. Push Notifications for ADMIN/MANAGER, Owner, and Creator
   try {
     const notifyUserIds = [];
     if (lead.owner) notifyUserIds.push(lead.owner);
     if (lead.lead_by) notifyUserIds.push(lead.lead_by);
 
-    const [adminTokens, otherTokens, creator] = await Promise.all([
+    const [adminTokens, otherTokens] = await Promise.all([
       userService.getAdminManagerTokens(),
-      userService.getUserTokens(notifyUserIds),
-      userService.findOne(actor.id)
+      userService.getUserTokens(notifyUserIds)
     ]);
 
-    const creatorName = creator?.name || 'Unknown';
     const allTokens = [...new Set([...adminTokens, ...otherTokens])];
 
     if (allTokens.length > 0) {
@@ -218,19 +225,16 @@ exports.createLead = async (inputData, actor) => {
     console.error('Failed to send new lead push notifications:', err.message);
   }
 
-  // Real-time Email Notifications for ADMINs, Creator (cc), and Dev (cc)
+  // 2. Real-time Email Notifications for ADMINs, Creator (cc), and Dev (cc)
   try {
-    const [admins, creator] = await Promise.all([
-      userService.getAdminEmails(),
-      userService.findOne(actor.id)
-    ]);
+    const admins = await userService.getAdminEmails();
 
     // Combined recipient list: Admins + Flutter Dev (backup)
     const toRecipients = admins.length > 0 ? admins : ['Flutter.developer@vistarlogitek.com'];
     
     const ccRecipients = [];
-    if (creator && creator.email) {
-      ccRecipients.push(creator.email);
+    if (creatorProfile?.email) {
+      ccRecipients.push(creatorProfile.email);
     }
     // If we used Flutter Dev as TO, don't put in CC again
     if (admins.length > 0) {
@@ -238,7 +242,6 @@ exports.createLead = async (inputData, actor) => {
     }
 
     if (toRecipients.length > 0) {
-      const creatorName = creator ? creator.name : 'Unknown';
       const subject = `New Lead Created: ${lead.company_name} (by ${creatorName})`;
       const htmlTemplate = generateNewLeadEmailHtml(lead, creatorName);
       const attachments = [
@@ -251,10 +254,6 @@ exports.createLead = async (inputData, actor) => {
 
       await sendEmail(toRecipients, subject, `New lead: ${lead.company_name}`, htmlTemplate, ccRecipients, attachments);
     }
-  } catch (err) {
-    console.error('Failed to send new lead email notification:', err.message);
-  }
-
   return lead;
 };
 
