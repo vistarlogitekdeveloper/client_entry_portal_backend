@@ -279,7 +279,17 @@ exports.getLeads = async (filters, actor) => {
   query += ` ORDER BY created_at DESC`;
 
   const result = await pool.query(query, values);
-  return result.rows;
+  const leads = result.rows;
+
+  const stats = {
+    total: leads.length,
+    myLeads: leads.filter(l => l.owner === actor?.id).length,
+    active: leads.filter(l => l.status === 'ACTIVE').length,
+    won: leads.filter(l => l.final_status === 'WON').length,
+    lost: leads.filter(l => l.final_status === 'LOST').length,
+  };
+
+  return { leads, stats };
 };
 
 // ✅ DISTINCT customer (company) names — one row per unique name after trim
@@ -593,7 +603,7 @@ exports.exportLeadsToExcel = async (filters, actor) => {
   const ExcelJS = require('exceljs');
 
   // Reuse getLeads logic
-  const leads = await exports.getLeads(filters, actor);
+  const { leads } = await exports.getLeads(filters, actor);
 
   // Fetch weekly comments (reviews) for these leads
   const leadIds = leads.map(l => l.id);

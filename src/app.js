@@ -31,6 +31,7 @@ app.get('/test-db', async (req, res) => {
 const authRoutes = require('./modules/auth/auth.routes');
 const leadRoutes = require('./modules/lead/lead.routes');
 const reviewRoutes = require('./modules/review/review.routes');
+const planningRoutes = require('./modules/planning/planning.routes');
 const dashboardRoutes = require('./modules/dashboard/dashboard.routes');
 const userRoutes = require('./modules/user/user.service'); // Note: req.user/user.routes exists too
 const userApiRoutes = require('./modules/user/user.routes');
@@ -45,6 +46,7 @@ const hoCertificationRoutes = require('./modules/ho_certification/ho_certificati
 app.use('/api/auth', authRoutes);
 app.use('/api/leads', leadRoutes);
 app.use('/api/reviews', reviewRoutes);
+app.use('/api/planning', planningRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/users', userApiRoutes);
 app.use('/api/customers', customerRoutes);

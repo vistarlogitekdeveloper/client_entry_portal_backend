@@ -13,8 +13,8 @@ exports.create = async (req, res) => {
 // ✅ GET ALL (WITH FILTERS)
 exports.getAll = async (req, res) => {
   try {
-    const leads = await service.getLeads(req.query, req.user);
-    res.json({ success: true, data: leads });
+    const { leads, stats } = await service.getLeads(req.query, req.user);
+    res.json({ success: true, data: leads, stats });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
