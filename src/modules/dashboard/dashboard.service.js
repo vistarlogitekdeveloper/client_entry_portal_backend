@@ -1,20 +1,35 @@
 const pool = require('../../config/db');
+const { isBD } = require('../../utils/role.utils');
 
-exports.getDashboardStats = async (actor, filterMonth, filterYear) => {
+exports.getDashboardStats = async (actor, filterMonth, filterYear, targetUserId) => {
   const isAllTime = (filterMonth === 0 || filterYear === 0);
   
-  let commonWhere = '';
+  let commonWhere = 'WHERE 1=1';
   let commonParams = [];
 
   if (!isAllTime) {
-    commonWhere = `
-      WHERE EXTRACT(MONTH FROM COALESCE(lead_received_date, created_at::date)) = $1 
-        AND EXTRACT(YEAR FROM COALESCE(lead_received_date, created_at::date)) = $2
+    commonWhere += `
+      AND EXTRACT(MONTH FROM COALESCE(lead_received_date, created_at::date)) = $1 
+      AND EXTRACT(YEAR FROM COALESCE(lead_received_date, created_at::date)) = $2
     `;
     commonParams = [filterMonth, filterYear];
   }
 
-  const actorWhere = ''; // No role-based filtering — all users see full data
+  // If actor is BD, force filter to their own ID.
+  // Otherwise, use targetUserId if provided.
+  let effectiveUserId = null;
+  if (isBD(actor)) {
+    effectiveUserId = actor.id;
+  } else if (targetUserId) {
+    effectiveUserId = targetUserId;
+  }
+
+  if (effectiveUserId) {
+    commonWhere += ` AND owner = $${commonParams.length + 1}`;
+    commonParams.push(effectiveUserId);
+  }
+
+  const actorWhere = ''; // Handled by effectiveUserId logic above
 
   const kpiQuery = `
     SELECT
@@ -85,10 +100,15 @@ exports.getDashboardStats = async (actor, filterMonth, filterYear) => {
   `;
 
   const monthlyWhere = isAllTime 
-    ? '' 
+    ? 'WHERE 1=1' 
     : `WHERE EXTRACT(YEAR FROM COALESCE(lead_received_date, created_at::date)) = $1`;
   const monthlyParams = isAllTime ? [] : [filterYear];
-  const monthlyActorWhere = ''; // No role-based filtering
+  
+  let monthlyActorWhere = '';
+  if (effectiveUserId) {
+    monthlyActorWhere = ` AND owner = $${monthlyParams.length + 1}`;
+    monthlyParams.push(effectiveUserId);
+  }
 
   const trendsQuery = `
     SELECT

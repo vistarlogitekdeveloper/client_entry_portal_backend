@@ -8,8 +8,9 @@ exports.getStats = async (req, res) => {
     // Parse query params, defaulting to 0 ("All Time")
     const filterMonth = (month !== undefined) ? parseInt(month) : 0;
     const filterYear = (year !== undefined) ? parseInt(year) : 0;
+    const targetUserId = req.query.userId || null;
 
-    const data = await service.getDashboardStats(req.user, filterMonth, filterYear);
+    const data = await service.getDashboardStats(req.user, filterMonth, filterYear, targetUserId);
     
     res.json({
       success: true,
