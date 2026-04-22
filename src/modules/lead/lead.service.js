@@ -197,18 +197,20 @@ exports.createLead = async (inputData, actor) => {
     if (lead.owner) notifyUserIds.push(lead.owner);
     if (lead.lead_by) notifyUserIds.push(lead.lead_by);
 
-    const [adminTokens, otherTokens] = await Promise.all([
+    const [adminTokens, otherTokens, creator] = await Promise.all([
       userService.getAdminManagerTokens(),
-      userService.getUserTokens(notifyUserIds)
+      userService.getUserTokens(notifyUserIds),
+      userService.findOne(actor.id)
     ]);
 
+    const creatorName = creator?.name || 'Unknown';
     const allTokens = [...new Set([...adminTokens, ...otherTokens])];
 
     if (allTokens.length > 0) {
       await sendMulticastNotification(
         allTokens,
         'New Lead Created',
-        `A new lead for "${lead.company_name}" has been created.`,
+        `A new lead for "${lead.company_name}" has been created by ${creatorName}.`,
         { lead_id: lead.id, type: 'NEW_LEAD' }
       );
     }
@@ -223,15 +225,22 @@ exports.createLead = async (inputData, actor) => {
       userService.findOne(actor.id)
     ]);
 
-    const toRecipients = admins;
-    const ccRecipients = ['Flutter.developer@vistarlogitek.com'];
+    // Combined recipient list: Admins + Flutter Dev (backup)
+    const toRecipients = admins.length > 0 ? admins : ['Flutter.developer@vistarlogitek.com'];
+    
+    const ccRecipients = [];
     if (creator && creator.email) {
       ccRecipients.push(creator.email);
     }
+    // If we used Flutter Dev as TO, don't put in CC again
+    if (admins.length > 0) {
+      ccRecipients.push('Flutter.developer@vistarlogitek.com');
+    }
 
     if (toRecipients.length > 0) {
-      const subject = `New Lead Created: ${lead.company_name}`;
-      const htmlTemplate = generateNewLeadEmailHtml(lead, creator ? creator.name : 'Unknown');
+      const creatorName = creator ? creator.name : 'Unknown';
+      const subject = `New Lead Created: ${lead.company_name} (by ${creatorName})`;
+      const htmlTemplate = generateNewLeadEmailHtml(lead, creatorName);
       const attachments = [
         {
           filename: 'logo.png',
