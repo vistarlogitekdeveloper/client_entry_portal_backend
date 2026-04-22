@@ -103,7 +103,7 @@ const mode = (process.argv[2] || 'all').toLowerCase(); // all | missing-current
     null,
     null,
     'PLANNING',
-    'ONGOING'
+    'UNDER NEGOTIATION'
   ]);
 
   const leadId = leadRes.rows[0].id;

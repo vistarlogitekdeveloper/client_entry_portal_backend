@@ -6,7 +6,7 @@ const { Client } = require('pg');
 
 const VALID_STATUS = new Set(['ACTIVE', 'INACTIVE']);
 const VALID_PRIORITY = new Set(['HIGH', 'MEDIUM', 'LOW']);
-const VALID_FINAL_STATUS = new Set(['WON', 'LOST', 'PENDING']);
+const VALID_FINAL_STATUS = new Set(['WON', 'LOST', 'UNDER NEGOTIATION']);
 
 const USER_ALIASES = {
   MARI: 'MARIAPPAN ACHARYA',
@@ -139,8 +139,12 @@ function getMappedFinalStatus(rawStatus) {
     return 'LOST';
   }
 
-  if (value === 'PENDING') {
-    return 'PENDING';
+  if (
+    value === 'PENDING' ||
+    value === 'ONGOING' ||
+    value === 'UNDER NEGOTIATION'
+  ) {
+    return 'UNDER NEGOTIATION';
   }
 
   return null;
@@ -287,16 +291,17 @@ function mapSheetRow(row, resolveUser, unresolvedLeadBy, unresolvedOwners) {
     project_location: cleanString(row['LOCATION']),
     city: toTitleCase(row['CITY']),
     region: toTitleCase(row['REGION']),
+    country: cleanString(row['COUNTRY']),
     business_scope: cleanString(row['BUSINESS SCOPE']),
     lead_received_date: getExcelDate(row['DOL']) || getExcelDate(row['LEAD GENERATED - MONTH']),
     rfq_submission_date: null,
     lead_by: resolveUser(row['LEAD BROUGHT & LEAD BY'], unresolvedLeadBy),
     owner: resolveUser(row['OWNER'], unresolvedOwners),
-    study_status: null,
+    study_status: 'ENQUIRY - INITIAL STATUS',
     commercial_status: 'NOT_STARTED',
     projected_value: getNumeric(row['PROJECTED VALUE']),
     projected_month: getExcelDate(row['Month']),
-    progress_status: null,
+    progress_status: 'ENQUIRY - INITIAL STATUS',
     final_status: getMappedFinalStatus(rawStatus)
   };
 

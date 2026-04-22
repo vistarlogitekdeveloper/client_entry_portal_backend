@@ -5,6 +5,8 @@ const userService = require('../user/user.service');
 const { sendMulticastNotification, sendPushNotification } = require('../../utils/notification.utils');
 const { sendEmail } = require('../../utils/email.utils');
 
+const ENQUIRY_INITIAL_STATUS = 'ENQUIRY - INITIAL STATUS';
+
 // Monday (start) week_start_date in LOCAL time.
 const getWeekStartDate = (dateInput) => {
   const d = new Date(dateInput);
@@ -115,13 +117,13 @@ exports.createLead = async (inputData, actor) => {
     INSERT INTO lead_master (
       company_name, contact_person, email, mobile,
       status, priority, project_location,
-      city, region, business_scope,
+      city, region, country, business_scope,
       lead_received_date, rfq_submission_date, lead_by, owner,
       study_status, commercial_status,
       projected_value, projected_month, progress_status, final_status,
       commercial_status_reason, final_status_reason, progress_status_reason, study_status_reason
     )
-    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24)
+    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25)
     RETURNING *;
   `;
 
@@ -130,21 +132,22 @@ exports.createLead = async (inputData, actor) => {
     data.contact_person,
     data.email,
     data.mobile,
-    data.status ?? 'ACTIVE',
+    data.status ?? ENQUIRY_INITIAL_STATUS,
     data.priority ?? null,
     data.project_location ?? null,
     data.city,
     data.region,
+    data.country ?? null,
     data.business_scope,
     data.lead_received_date,
     data.rfq_submission_date ?? null,
     leadBy,
     owner,
-    data.study_status ?? null,
+    data.study_status ?? ENQUIRY_INITIAL_STATUS,
     data.commercial_status ?? 'NOT_STARTED',
     data.projected_value ?? null,
     data.projected_month ?? null,
-    data.progress_status ?? null,
+    data.progress_status ?? ENQUIRY_INITIAL_STATUS,
     data.final_status ?? null,
     data.commercial_status_reason ?? null,
     data.final_status_reason ?? null,
@@ -308,7 +311,7 @@ exports.getLeads = async (filters, actor) => {
   const stats = {
     total: leads.length,
     myLeads: leads.filter(l => l.owner === actor?.id).length,
-    active: leads.filter(l => l.status === 'ACTIVE').length,
+    active: leads.filter(l => l.status === 'ACTIVE' || l.status === ENQUIRY_INITIAL_STATUS).length,
     won: leads.filter(l => l.final_status === 'WON').length,
     lost: leads.filter(l => l.final_status === 'LOST').length,
   };
@@ -367,6 +370,7 @@ exports.updateLead = async (id, inputData, actor) => {
     mobile: 'mobile',
     city: 'city',
     region: 'region',
+    country: 'country',
     business_scope: 'business_scope',
     lead_received_date: 'lead_received_date',
     rfq_submission_date: 'rfq_submission_date',

@@ -55,6 +55,7 @@ const initDb = async () => {
         project_location VARCHAR(255),
         city VARCHAR(100),
         region VARCHAR(100),
+        country VARCHAR(100),
         business_scope TEXT,
         lead_received_date DATE,
         rfq_submission_date DATE,
@@ -64,8 +65,8 @@ const initDb = async () => {
         commercial_status VARCHAR(100) DEFAULT 'NOT_STARTED',
         projected_value NUMERIC(15, 2),
         projected_month DATE,
-        progress_status VARCHAR(100) CHECK (progress_status IN ('PLANNING', 'EXECUTION', 'HOLD', 'COMPLETED')),
-        final_status VARCHAR(50) CHECK (final_status IN ('WON', 'LOST', 'PENDING')),
+        progress_status VARCHAR(100) CHECK (progress_status IN ('ENQUIRY - INITIAL STATUS', 'PLANNING', 'EXECUTION', 'EXECUTION - UNDERIMPLEMENTATION', 'HOLD', 'COMPLETED')),
+        final_status VARCHAR(50) CHECK (final_status IN ('WON', 'LOST', 'UNDER NEGOTIATION')),
         commercial_status_reason TEXT,
         final_status_reason TEXT,
         progress_status_reason TEXT,
@@ -79,6 +80,30 @@ const initDb = async () => {
     await execute(`ALTER TABLE lead_master ADD COLUMN IF NOT EXISTS final_status_reason TEXT;`, 'final_status_reason column');
     await execute(`ALTER TABLE lead_master ADD COLUMN IF NOT EXISTS progress_status_reason TEXT;`, 'progress_status_reason column');
     await execute(`ALTER TABLE lead_master ADD COLUMN IF NOT EXISTS study_status_reason TEXT;`, 'study_status_reason column');
+    await execute(`ALTER TABLE lead_master ADD COLUMN IF NOT EXISTS country VARCHAR(100);`, 'country column');
+    await execute(`
+      UPDATE lead_master
+      SET final_status = 'UNDER NEGOTIATION'
+      WHERE final_status IN ('ONGOING', 'PENDING');
+    `, 'final_status value normalization');
+    await execute(`
+      DO $$
+      BEGIN
+        ALTER TABLE lead_master DROP CONSTRAINT IF EXISTS lead_master_progress_status_check;
+        ALTER TABLE lead_master ADD CONSTRAINT lead_master_progress_status_check
+        CHECK (progress_status IN ('ENQUIRY - INITIAL STATUS', 'PLANNING', 'EXECUTION', 'EXECUTION - UNDERIMPLEMENTATION', 'HOLD', 'COMPLETED'));
+      EXCEPTION WHEN others THEN NULL;
+      END $$;
+    `, 'progress_status constraint update');
+    await execute(`
+      DO $$
+      BEGIN
+        ALTER TABLE lead_master DROP CONSTRAINT IF EXISTS lead_master_final_status_check;
+        ALTER TABLE lead_master ADD CONSTRAINT lead_master_final_status_check
+        CHECK (final_status IN ('WON', 'LOST', 'UNDER NEGOTIATION'));
+      EXCEPTION WHEN others THEN NULL;
+      END $$;
+    `, 'final_status constraint update');
 
     await execute(`
       CREATE TABLE IF NOT EXISTS customer_master (
