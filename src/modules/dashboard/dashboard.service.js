@@ -15,31 +15,29 @@ exports.getDashboardStats = async (actor, filterMonth, filterYear, targetUserId)
     commonParams = [filterMonth, filterYear];
   }
 
-  // If actor is BD, force filter to their own ID.
-  // Otherwise, use targetUserId if provided.
-  let effectiveUserId = null;
-  if (isBD(actor)) {
-    effectiveUserId = actor.id;
-  } else if (targetUserId) {
-    effectiveUserId = targetUserId;
-  }
-
-  if (effectiveUserId) {
-    commonWhere += ` AND owner = $${commonParams.length + 1}`;
-    commonParams.push(effectiveUserId);
-  }
-
-  const actorWhere = ''; // Handled by effectiveUserId logic above
+  // We always want to know the actor's ID for personal stats
+  const actorId = actor.id;
+  const kpiParams = [...commonParams];
+  const actorParamIndex = kpiParams.length + 1;
+  kpiParams.push(actorId);
 
   const kpiQuery = `
     SELECT
+      -- Global Stats
       COUNT(*)::INTEGER AS total_leads,
       COUNT(*) FILTER (WHERE status = 'ACTIVE')::INTEGER AS active_leads,
       COUNT(*) FILTER (WHERE final_status = 'WON')::INTEGER AS won_leads,
       COUNT(*) FILTER (WHERE final_status = 'LOST')::INTEGER AS lost_leads,
-      COALESCE(SUM(projected_value), 0)::NUMERIC AS total_pipeline_value
+      COALESCE(SUM(projected_value), 0)::NUMERIC AS total_pipeline_value,
+      
+      -- Personal Stats (for the logged-in user)
+      COUNT(*) FILTER (WHERE owner = $${actorParamIndex})::INTEGER AS my_total_leads,
+      COUNT(*) FILTER (WHERE owner = $${actorParamIndex} AND status = 'ACTIVE')::INTEGER AS my_active_leads,
+      COUNT(*) FILTER (WHERE owner = $${actorParamIndex} AND final_status = 'WON')::INTEGER AS my_won_leads,
+      COUNT(*) FILTER (WHERE owner = $${actorParamIndex} AND final_status = 'LOST')::INTEGER AS my_lost_leads,
+      COALESCE(SUM(projected_value) FILTER (WHERE owner = $${actorParamIndex}), 0)::NUMERIC AS my_pipeline_value
     FROM lead_master
-    ${commonWhere} ${actorWhere}
+    ${commonWhere}
   `;
 
   const leaderboardQuery = isAllTime 
@@ -83,7 +81,7 @@ exports.getDashboardStats = async (actor, filterMonth, filterYear, targetUserId)
       COUNT(*)::INTEGER AS total_leads,
       COALESCE(SUM(projected_value), 0)::NUMERIC AS revenue
     FROM lead_master
-    ${commonWhere} ${actorWhere}
+    ${commonWhere}
     GROUP BY region
     ORDER BY total_leads DESC
   `;
@@ -94,7 +92,7 @@ exports.getDashboardStats = async (actor, filterMonth, filterYear, targetUserId)
       COUNT(*)::INTEGER AS total_leads,
       COALESCE(SUM(projected_value), 0)::NUMERIC AS revenue
     FROM lead_master
-    ${commonWhere} ${actorWhere}
+    ${commonWhere}
     GROUP BY business_scope
     ORDER BY total_leads DESC
   `;
@@ -103,12 +101,6 @@ exports.getDashboardStats = async (actor, filterMonth, filterYear, targetUserId)
     ? 'WHERE 1=1' 
     : `WHERE EXTRACT(YEAR FROM COALESCE(lead_received_date, created_at::date)) = $1`;
   const monthlyParams = isAllTime ? [] : [filterYear];
-  
-  let monthlyActorWhere = '';
-  if (effectiveUserId) {
-    monthlyActorWhere = ` AND owner = $${monthlyParams.length + 1}`;
-    monthlyParams.push(effectiveUserId);
-  }
 
   const trendsQuery = `
     SELECT
@@ -117,7 +109,7 @@ exports.getDashboardStats = async (actor, filterMonth, filterYear, targetUserId)
       COUNT(*) FILTER (WHERE final_status = 'WON')::INTEGER AS won_leads,
       COALESCE(SUM(projected_value), 0)::NUMERIC AS revenue
     FROM lead_master
-    ${monthlyWhere} ${monthlyActorWhere}
+    ${monthlyWhere}
     GROUP BY TO_CHAR(COALESCE(lead_received_date, created_at::date), 'YYYY-MM')
     ORDER BY month ASC
   `;
@@ -131,7 +123,7 @@ exports.getDashboardStats = async (actor, filterMonth, filterYear, targetUserId)
     scopeResult,
     trendsResult
   ] = await Promise.all([
-    pool.query(kpiQuery, commonParams),
+    pool.query(kpiQuery, kpiParams),
     pool.query(leaderboardQuery, leaderboardParams),
     pool.query(regionQuery, commonParams),
     pool.query(scopeQuery, commonParams),
@@ -147,6 +139,9 @@ exports.getDashboardStats = async (actor, filterMonth, filterYear, targetUserId)
   
   kpi.average_deal_size = kpi.total_leads > 0 
     ? parseFloat((kpi.total_pipeline_value / kpi.total_leads).toFixed(2)) : 0.0;
+    
+  kpi.my_conversion_rate = kpi.my_total_leads > 0 
+    ? parseFloat(((kpi.my_won_leads / kpi.my_total_leads) * 100).toFixed(2)) : 0.0;
 
   const leaderboard = leaderboardResult.rows.map(row => ({
     bd_name: row.bd_name,
@@ -204,7 +199,14 @@ exports.getDashboardStats = async (actor, filterMonth, filterYear, targetUserId)
       lost_leads: parseInt(kpi.lost_leads),
       total_pipeline_value: parseFloat(kpi.total_pipeline_value),
       conversion_rate: kpi.conversion_rate,
-      average_deal_size: kpi.average_deal_size
+      average_deal_size: kpi.average_deal_size,
+      // Personal stats
+      my_total_leads: parseInt(kpi.my_total_leads),
+      my_active_leads: parseInt(kpi.my_active_leads),
+      my_won_leads: parseInt(kpi.my_won_leads),
+      my_lost_leads: parseInt(kpi.my_lost_leads),
+      my_pipeline_value: parseFloat(kpi.my_pipeline_value),
+      my_conversion_rate: kpi.my_conversion_rate
     },
     top_performers: {
       best_overall,
