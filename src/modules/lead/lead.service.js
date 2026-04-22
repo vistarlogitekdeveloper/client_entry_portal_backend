@@ -225,37 +225,36 @@ exports.createLead = async (inputData, actor) => {
   }
 
   // 2. Real-time Email Notifications for ADMINs, Creator (cc), and Dev (cc)
-  try {
-    const admins = await userService.getAdminEmails();
+  setImmediate(async () => {
+    try {
+      const admins = await userService.getAdminEmails();
 
-    // Combined recipient list: Admins + Flutter Dev (backup)
-    const toRecipients = (admins.length > 0 ? admins : ['Flutter.developer@vistarlogitek.com'])
-      .filter(email => email && typeof email === 'string' && email.includes('@'));
-    
-    const ccRecipients = [];
-    if (creatorProfile?.email) {
-      ccRecipients.push(creatorProfile.email);
-    }
-    if (admins.length > 0) {
-      ccRecipients.push('Flutter.developer@vistarlogitek.com');
-    }
-    
-    const filteredCc = ccRecipients.filter(email => email && typeof email === 'string' && email.includes('@'));
-
-    console.log(`📧 Attempting to send email. TO: ${toRecipients.join(', ')} | CC: ${filteredCc.join(', ')}`);
-
-    if (toRecipients.length > 0) {
-      const subject = `New Lead Created: ${lead.company_name} (by ${creatorName})`;
-      const htmlTemplate = generateNewLeadEmailHtml(lead, creatorName);
+      const toRecipients = (admins.length > 0 ? admins : ['Flutter.developer@vistarlogitek.com'])
+        .filter(email => email && typeof email === 'string' && email.includes('@'));
       
-      await sendEmail(toRecipients, subject, `New lead: ${lead.company_name}`, htmlTemplate, filteredCc);
-      console.log('✅ Email sent successfully according to lead service.');
-    } else {
-      console.warn('⚠️ No valid TO recipients found for lead creation email.');
+      const ccRecipients = [];
+      if (creatorProfile?.email) {
+        ccRecipients.push(creatorProfile.email);
+      }
+      if (admins.length > 0) {
+        ccRecipients.push('Flutter.developer@vistarlogitek.com');
+      }
+      
+      const filteredCc = ccRecipients.filter(email => email && typeof email === 'string' && email.includes('@'));
+
+      console.log(`📧 [Background] Sending email to: ${toRecipients.join(', ')}`);
+
+      if (toRecipients.length > 0) {
+        const subject = `New Lead Created: ${lead.company_name} (by ${creatorName})`;
+        const htmlTemplate = generateNewLeadEmailHtml(lead, creatorName);
+        
+        await sendEmail(toRecipients, subject, `New lead: ${lead.company_name}`, htmlTemplate, filteredCc);
+        console.log('✅ [Background] Email sent successfully.');
+      }
+    } catch (err) {
+      console.error('❌ [Background] Failed to send email:', err.message);
     }
-  } catch (err) {
-    console.error('❌ Failed to send new lead email notification:', err.message);
-  }
+  });
 
   return lead;
 };
