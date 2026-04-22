@@ -64,6 +64,7 @@ const generateNewLeadEmailHtml = (lead, creatorName) => {
     <body>
       <div class="container">
         <div class="header">
+          <img src="cid:logo" alt="Vistar Logitek" style="max-height: 80px; margin-bottom: 10px;">
           <div style="font-size: 14px; color: #666; font-weight: 600;">Client Entry Portal</div>
         </div>
         <div class="content">
@@ -248,7 +249,15 @@ exports.createLead = async (inputData, actor) => {
         const subject = `New Lead Created: ${lead.company_name} (by ${creatorName})`;
         const htmlTemplate = generateNewLeadEmailHtml(lead, creatorName);
         
-        await sendEmail(toRecipients, subject, `New lead: ${lead.company_name}`, htmlTemplate, filteredCc);
+        const attachments = [
+          {
+            filename: 'logo.png',
+            path: path.join(process.cwd(), 'assets', 'logo.png'),
+            cid: 'logo'
+          }
+        ];
+
+        await sendEmail(toRecipients, subject, `New lead: ${lead.company_name}`, htmlTemplate, filteredCc, attachments);
         console.log('✅ [Background] Email sent successfully.');
       }
     } catch (err) {
