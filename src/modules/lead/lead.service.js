@@ -254,6 +254,10 @@ exports.createLead = async (inputData, actor) => {
 
       await sendEmail(toRecipients, subject, `New lead: ${lead.company_name}`, htmlTemplate, ccRecipients, attachments);
     }
+  } catch (err) {
+    console.error('Failed to send new lead email notification:', err.message);
+  }
+
   return lead;
 };
 
