@@ -229,24 +229,32 @@ exports.createLead = async (inputData, actor) => {
     const admins = await userService.getAdminEmails();
 
     // Combined recipient list: Admins + Flutter Dev (backup)
-    const toRecipients = admins.length > 0 ? admins : ['Flutter.developer@vistarlogitek.com'];
+    const toRecipients = (admins.length > 0 ? admins : ['Flutter.developer@vistarlogitek.com'])
+      .filter(email => email && typeof email === 'string' && email.includes('@'));
     
     const ccRecipients = [];
     if (creatorProfile?.email) {
       ccRecipients.push(creatorProfile.email);
     }
-    // If we used Flutter Dev as TO, don't put in CC again
     if (admins.length > 0) {
       ccRecipients.push('Flutter.developer@vistarlogitek.com');
     }
+    
+    const filteredCc = ccRecipients.filter(email => email && typeof email === 'string' && email.includes('@'));
+
+    console.log(`📧 Attempting to send email. TO: ${toRecipients.join(', ')} | CC: ${filteredCc.join(', ')}`);
 
     if (toRecipients.length > 0) {
       const subject = `New Lead Created: ${lead.company_name} (by ${creatorName})`;
       const htmlTemplate = generateNewLeadEmailHtml(lead, creatorName);
-      await sendEmail(toRecipients, subject, `New lead: ${lead.company_name}`, htmlTemplate, ccRecipients);
+      
+      await sendEmail(toRecipients, subject, `New lead: ${lead.company_name}`, htmlTemplate, filteredCc);
+      console.log('✅ Email sent successfully according to lead service.');
+    } else {
+      console.warn('⚠️ No valid TO recipients found for lead creation email.');
     }
   } catch (err) {
-    console.error('Failed to send new lead email notification:', err.message);
+    console.error('❌ Failed to send new lead email notification:', err.message);
   }
 
   return lead;
