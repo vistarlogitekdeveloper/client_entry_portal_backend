@@ -113,9 +113,11 @@ const startLeadReportScheduler = () => {
   // Every Friday at 5:00 PM (17:00)
   // Cron format: 'minute hour day-of-month month day-of-week'
   // 5 is Friday
-  cron.schedule('0 17 * * 5', runLeadReportJob);
+  cron.schedule('0 17 * * 5', runLeadReportJob, {
+    timezone: "Asia/Kolkata"
+  });
 
-  console.log('[lead-report] Weekly lead report scheduler started (Every Friday at 17:00)');
+  console.log('[lead-report] Weekly lead report scheduler started (Every Friday at 17:00 Asia/Kolkata)');
 };
 
 module.exports = {

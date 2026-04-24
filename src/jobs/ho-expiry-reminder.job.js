@@ -257,16 +257,20 @@ const runHODocumentExpiryJob = async () => {
 };
 
 const startHOScheduler = () => {
-  // Run daily at midnight for expiry checks
-  cron.schedule('0 10 * * *', runHODocumentExpiryJob);
+  // Run daily at 10:00 AM Asia/Kolkata for expiry checks
+  cron.schedule('0 10 * * *', runHODocumentExpiryJob, {
+    timezone: "Asia/Kolkata"
+  });
 
   // Run every hour for retries
   cron.schedule('0 * * * *', async () => {
     console.log('[ho-expiry] Checking for failed notifications to retry...');
     await retryFailedNotifications();
+  }, {
+    timezone: "Asia/Kolkata"
   });
 
-  console.log('[ho-expiry] Head Office scheduler started (Daily at 10:00, Retries hourly)');
+  console.log('[ho-expiry] Head Office scheduler started (Daily at 10:00 Asia/Kolkata, Retries hourly)');
 };
 
 module.exports = {
