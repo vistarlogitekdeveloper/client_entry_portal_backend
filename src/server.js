@@ -4,6 +4,7 @@ const initDb = require('./config/initDb');
 const { startWeeklyReminderScheduler } = require('./jobs/weekly-reminder.job');
 const { startHOScheduler } = require('./jobs/ho-expiry-reminder.job');
 const { startLeadReportScheduler } = require('./jobs/lead-report.job');
+const { startWeeklyReminderEmailScheduler } = require('./jobs/weekly-reminder-email.job');
 
 const PORT = process.env.PORT || 5000;
 
@@ -15,5 +16,6 @@ initDb()
       startWeeklyReminderScheduler();
       startHOScheduler();
       startLeadReportScheduler();
+      startWeeklyReminderEmailScheduler();
     });
   });
