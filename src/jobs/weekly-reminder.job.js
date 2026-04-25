@@ -36,6 +36,7 @@ const runWeeklyReminderJob = async () => {
      AND lr.week_start_date::date = $1::date
     WHERE lr.id IS NULL
       AND lm.owner IS NOT NULL
+      AND lm.status NOT IN ('WON', 'LOST')
       AND (lm.reminder_snooze_until IS NULL OR lm.reminder_snooze_until < CURRENT_DATE)
   `;
 
