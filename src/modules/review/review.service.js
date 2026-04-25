@@ -172,6 +172,7 @@ exports.getPendingReminders = async (userId, weekStartDate, status) => {
       lm.region,
       lm.priority,
       lm.status AS lead_status,
+      lm.reminder_snooze_until,
       TO_CHAR($2::date, 'YYYY-MM-DD') AS week_start_date,
       (
         SELECT r.status
