@@ -36,7 +36,9 @@ const runWeeklyReminderJob = async () => {
      AND lr.week_start_date::date = $1::date
     WHERE lr.id IS NULL
       AND lm.owner IS NOT NULL
+      AND (lm.reminder_snooze_until IS NULL OR lm.reminder_snooze_until < CURRENT_DATE)
   `;
+
 
   const insertSql = `
     WITH missing AS (

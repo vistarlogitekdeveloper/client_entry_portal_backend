@@ -11,6 +11,8 @@ router.get('/:id', authMiddleware, roleMiddleware(['BD', 'MANAGER', 'ADMIN']), c
 router.get('/:id/changes', authMiddleware, roleMiddleware(['BD', 'MANAGER', 'ADMIN']), controller.getChanges);
 router.post('/', authMiddleware, roleMiddleware(['BD', 'MANAGER', 'ADMIN']), controller.create);
 router.put('/:id', authMiddleware, roleMiddleware(['BD', 'MANAGER', 'ADMIN']), controller.update);
+router.patch('/:id/snooze', authMiddleware, roleMiddleware(['BD', 'MANAGER', 'ADMIN']), controller.snoozeReminder);
 router.delete('/:id', authMiddleware, roleMiddleware(['ADMIN']), controller.deleteLead);
 
 module.exports = router;
+

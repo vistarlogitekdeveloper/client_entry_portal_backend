@@ -97,3 +97,20 @@ exports.exportExcel = async (req, res) => {
     res.status(500).json({ success: false, message: err.message });
   }
 };
+
+// ✅ SNOOZE WEEKLY REMINDER (PATCH /leads/:id/snooze)
+exports.snoozeReminder = async (req, res) => {
+  try {
+    const { snooze_until } = req.body; // null to clear, 'YYYY-MM-DD' to set
+    const lead = await service.setSnooze(req.params.id, snooze_until, req.user);
+
+    if (!lead) {
+      return res.status(404).json({ success: false, message: 'Lead not found' });
+    }
+
+    res.json({ success: true, data: lead });
+  } catch (err) {
+    res.status(400).json({ success: false, message: err.message });
+  }
+};
+

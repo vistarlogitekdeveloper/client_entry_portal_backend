@@ -69,7 +69,7 @@ const runWeeklyReminderEmailJob = async () => {
   const weekStartDate = getWeekStartDate(new Date());
   
   try {
-    // 1. Fetch all pending leads grouped by owner
+    // 1. Fetch all pending leads grouped by owner (excluding snoozed ones)
     const pendingLeadsResult = await pool.query(`
       SELECT 
         lm.id, 
@@ -82,8 +82,10 @@ const runWeeklyReminderEmailJob = async () => {
       JOIN users u ON lm.owner = u.id
       LEFT JOIN lead_reviews lr ON lr.lead_id = lm.id AND lr.week_start_date::date = $1::date
       WHERE lr.id IS NULL AND lm.status = 'ACTIVE'
+        AND (lm.reminder_snooze_until IS NULL OR lm.reminder_snooze_until < CURRENT_DATE)
       ORDER BY u.id
     `, [weekStartDate]);
+
 
     const pendingLeads = pendingLeadsResult.rows;
     if (pendingLeads.length === 0) {

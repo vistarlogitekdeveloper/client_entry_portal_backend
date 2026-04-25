@@ -631,6 +631,47 @@ exports.deleteLead = async (id, actor) => {
   return result.rows[0];
 };
 
+// ✅ SNOOZE WEEKLY REMINDER for a lead
+// snoozeUntil: 'YYYY-MM-DD' string or null (to clear snooze)
+exports.setSnooze = async (leadId, snoozeUntil, actor) => {
+  // Validate date when provided
+  if (snoozeUntil !== null && snoozeUntil !== undefined && snoozeUntil !== '') {
+    const date = new Date(snoozeUntil);
+    if (Number.isNaN(date.getTime())) {
+      throw new Error('Invalid snooze_until date');
+    }
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    if (date <= today) {
+      throw new Error('snooze_until must be a future date');
+    }
+  }
+
+  const normalizedDate = (snoozeUntil && snoozeUntil !== '') ? snoozeUntil : null;
+
+  const values = [normalizedDate, leadId];
+
+  // BD users can only snooze leads they own or sourced
+  let accessFilter = '';
+  if (isBD(actor)) {
+    accessFilter = 'AND (owner = $3 OR lead_by = $3)';
+    values.push(actor.id);
+  }
+
+  const result = await pool.query(
+    `UPDATE lead_master
+     SET reminder_snooze_until = $1,
+         updated_at = CURRENT_TIMESTAMP
+     WHERE id = $2
+       ${accessFilter}
+     RETURNING *`,
+    values
+  );
+
+  return result.rows[0] || null;
+};
+
+
 exports.exportLeadsToExcel = async (filters, actor) => {
   const ExcelJS = require('exceljs');
 
