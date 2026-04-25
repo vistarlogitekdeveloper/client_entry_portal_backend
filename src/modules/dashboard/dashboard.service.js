@@ -49,7 +49,7 @@ exports.getDashboardStats = async (actor, filterMonth, filterYear, targetUserId)
         COUNT(lm.id)::INTEGER AS total_leads,
         COUNT(lm.id) FILTER (WHERE lm.final_status = 'WON')::INTEGER AS won_leads,
         COALESCE(SUM(lm.projected_value), 0)::NUMERIC AS total_value,
-        (SELECT COUNT(*)::INTEGER FROM lead_review_reminders r WHERE r.notified_user_id = u.id AND r.status = 'PENDING') AS pending_updates
+        (SELECT COUNT(*)::INTEGER FROM lead_review_reminders r JOIN lead_master lm_sub ON lm_sub.id = r.lead_id WHERE r.notified_user_id = u.id AND r.status = 'PENDING' AND (lm_sub.final_status IS NULL OR lm_sub.final_status NOT IN ('WON', 'LOST'))) AS pending_updates
       FROM users u
       LEFT JOIN lead_master lm ON lm.owner = u.id
       WHERE u.role IN ('BD', 'MANAGER', 'ADMIN')
@@ -64,7 +64,7 @@ exports.getDashboardStats = async (actor, filterMonth, filterYear, targetUserId)
         COUNT(lm.id)::INTEGER AS total_leads,
         COUNT(lm.id) FILTER (WHERE lm.final_status = 'WON')::INTEGER AS won_leads,
         COALESCE(SUM(lm.projected_value), 0)::NUMERIC AS total_value,
-        (SELECT COUNT(*)::INTEGER FROM lead_review_reminders r WHERE r.notified_user_id = u.id AND r.status = 'PENDING') AS pending_updates
+        (SELECT COUNT(*)::INTEGER FROM lead_review_reminders r JOIN lead_master lm_sub ON lm_sub.id = r.lead_id WHERE r.notified_user_id = u.id AND r.status = 'PENDING' AND (lm_sub.final_status IS NULL OR lm_sub.final_status NOT IN ('WON', 'LOST'))) AS pending_updates
       FROM users u
       LEFT JOIN lead_master lm
         ON lm.owner = u.id

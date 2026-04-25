@@ -81,8 +81,8 @@ const runWeeklyReminderEmailJob = async () => {
       FROM lead_master lm
       JOIN users u ON lm.owner = u.id
       LEFT JOIN lead_reviews lr ON lr.lead_id = lm.id AND lr.week_start_date::date = $1::date
-      WHERE lr.id IS NULL
-        AND lm.status NOT IN ('WON', 'LOST')
+      WHERE lr.id IS NULL AND lm.status = 'ACTIVE'
+        AND (lm.final_status IS NULL OR lm.final_status NOT IN ('WON', 'LOST'))
         AND (lm.reminder_snooze_until IS NULL OR lm.reminder_snooze_until < CURRENT_DATE)
       ORDER BY u.id
     `, [weekStartDate]);

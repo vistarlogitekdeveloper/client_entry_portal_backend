@@ -190,7 +190,7 @@ exports.getPendingReminders = async (userId, weekStartDate, status) => {
       AND lr.week_start_date::date = $2::date
      WHERE lm.owner = $1
        AND lr.id IS NULL
-       AND lm.status NOT IN ('WON', 'LOST')
+       AND (lm.final_status IS NULL OR lm.final_status NOT IN ('WON', 'LOST'))
        AND EXISTS (
          SELECT 1
          FROM lead_review_reminders r
