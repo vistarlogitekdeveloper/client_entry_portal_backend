@@ -105,6 +105,83 @@ const initDb = async () => {
       END $$;
     `, 'final_status constraint update');
 
+    // Weekly lead reviews + reminders
+    await execute(`
+      CREATE TABLE IF NOT EXISTS lead_reviews (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        lead_id UUID NOT NULL REFERENCES lead_master(id) ON DELETE CASCADE,
+        week_start_date DATE NOT NULL,
+        review_status VARCHAR(50) NOT NULL CHECK (review_status IN ('UPDATED', 'SKIPPED')),
+        remarks TEXT,
+        created_by UUID REFERENCES users(id) ON DELETE SET NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE (lead_id, week_start_date)
+      );
+    `, 'Lead reviews table');
+
+    await execute(`
+      CREATE TABLE IF NOT EXISTS lead_review_reminders (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        week_start_date DATE NOT NULL,
+        reminder_day VARCHAR(20) DEFAULT 'FRIDAY',
+        lead_id UUID NOT NULL REFERENCES lead_master(id) ON DELETE CASCADE,
+        notified_user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        status VARCHAR(50) DEFAULT 'PENDING' CHECK (status IN ('PENDING', 'UPDATED', 'SKIPPED')),
+        sent_at TIMESTAMP,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE (week_start_date, lead_id, notified_user_id, reminder_day)
+      );
+    `, 'Lead review reminders table');
+
+    // Lead field-level audit trail
+    await execute(`
+      CREATE TABLE IF NOT EXISTS lead_change_events (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        lead_id UUID NOT NULL REFERENCES lead_master(id) ON DELETE CASCADE,
+        changed_by UUID REFERENCES users(id) ON DELETE SET NULL,
+        changed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `, 'Lead change events table');
+
+    await execute(`
+      CREATE TABLE IF NOT EXISTS lead_change_event_fields (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        event_id UUID NOT NULL REFERENCES lead_change_events(id) ON DELETE CASCADE,
+        field_name VARCHAR(255) NOT NULL,
+        old_value TEXT,
+        new_value TEXT
+      );
+    `, 'Lead change event fields table');
+
+    await execute(`
+      CREATE INDEX IF NOT EXISTS idx_lead_change_events_lead_id_changed_at
+      ON lead_change_events (lead_id, changed_at DESC);
+    `, 'Lead change events index');
+
+    await execute(`
+      CREATE INDEX IF NOT EXISTS idx_lead_change_event_fields_event_id
+      ON lead_change_event_fields (event_id);
+    `, 'Lead change event fields index');
+
+    // Tasks module
+    await execute(`
+      CREATE TABLE IF NOT EXISTS tasks (
+        id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+        title VARCHAR(255) NOT NULL,
+        description TEXT,
+        status VARCHAR(20) DEFAULT 'PENDING' CHECK (status IN ('PENDING', 'IN_PROGRESS', 'COMPLETED')),
+        priority VARCHAR(10) DEFAULT 'MEDIUM' CHECK (priority IN ('LOW', 'MEDIUM', 'HIGH')),
+        due_date DATE,
+        assigned_to UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `, 'Tasks table');
+
+    await execute(`CREATE INDEX IF NOT EXISTS idx_tasks_assigned_to ON tasks(assigned_to);`, 'Tasks assigned_to index');
+    await execute(`CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status);`, 'Tasks status index');
+
     await execute(`
       CREATE TABLE IF NOT EXISTS customer_master (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
