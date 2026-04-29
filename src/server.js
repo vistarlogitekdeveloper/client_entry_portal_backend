@@ -8,14 +8,17 @@ const { startWeeklyReminderEmailScheduler } = require('./jobs/weekly-reminder-em
 
 const PORT = process.env.PORT || 5000;
 
-initDb()
-  .catch((err) => console.error('⚠️ DB init error (continuing anyway):', err.message))
-  .finally(() => {
-    app.listen(PORT, () => {
-      console.log(`🚀 Server running on port ${PORT}`);
-      startWeeklyReminderScheduler();
-      startHOScheduler();
-      startLeadReportScheduler();
-      startWeeklyReminderEmailScheduler();
-    });
-  });
+const startSchedulers = () => {
+  startWeeklyReminderScheduler();
+  startHOScheduler();
+  startLeadReportScheduler();
+  startWeeklyReminderEmailScheduler();
+};
+
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
+
+  initDb()
+    .catch((err) => console.error('DB init error (continuing anyway):', err.message))
+    .finally(startSchedulers);
+});
