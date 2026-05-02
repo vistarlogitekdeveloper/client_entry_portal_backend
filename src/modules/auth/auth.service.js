@@ -3,18 +3,17 @@ const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 
 exports.login = async (email, password) => {
+  const normalizedEmail = String(email || '').toLowerCase().trim();
   const result = await pool.query(
-    'SELECT * FROM users WHERE email = $1',
-    [email.toLowerCase().trim()]
+    'SELECT * FROM users WHERE LOWER(TRIM(email)) = $1',
+    [normalizedEmail]
   );
-  
+
   if (result.rows.length === 0) {
     throw new Error('User not found');
   }
 
   const user = result.rows[0];
-  console.log('Entered Password:', password);
-console.log('DB Password:', user.password);
 
   const isMatch = await bcrypt.compare(password, user.password);
 
