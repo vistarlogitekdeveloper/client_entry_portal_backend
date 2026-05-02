@@ -32,13 +32,24 @@ const normalizeWeekStartDate = (data) => {
 };
 
 const canAccessLead = async (leadId, actor, db = pool) => {
-  if (!isBD(actor)) return true;
+  // Always verify the lead exists; otherwise the INSERT will fail with FK errors.
+  if (!isBD(actor)) {
+    const result = await db.query(
+      `SELECT 1
+       FROM lead_master
+       WHERE id = $1
+       LIMIT 1`,
+      [leadId]
+    );
+    return result.rows.length > 0;
+  }
 
+  // BD can access leads they own OR created (lead_by).
   const result = await db.query(
     `SELECT 1
      FROM lead_master
      WHERE id = $1
-       AND owner = $2
+       AND (owner = $2 OR lead_by = $2)
      LIMIT 1`,
     [leadId, actor.id]
   );

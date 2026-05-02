@@ -33,7 +33,14 @@ exports.addPlanning = async (data, actor) => {
     DO UPDATE SET
       plan_content = EXCLUDED.plan_content,
       updated_at = CURRENT_TIMESTAMP
-    RETURNING *;
+    RETURNING
+      id,
+      lead_id,
+      week_start_date::text AS week_start_date,
+      plan_content,
+      created_by,
+      created_at,
+      updated_at;
   `;
 
   const values = [
@@ -58,7 +65,13 @@ exports.getPlanningByLead = async (leadId, actor) => {
 
   const result = await pool.query(
     `SELECT
-      lp.*
+      lp.id,
+      lp.lead_id,
+      lp.week_start_date::text AS week_start_date,
+      lp.plan_content,
+      lp.created_by,
+      lp.created_at,
+      lp.updated_at
      FROM lead_planning lp
      INNER JOIN lead_master lm ON lm.id = lp.lead_id
      WHERE lp.lead_id = $1
