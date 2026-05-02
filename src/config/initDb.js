@@ -81,6 +81,7 @@ const initDb = async () => {
     await execute(`ALTER TABLE lead_master ADD COLUMN IF NOT EXISTS progress_status_reason TEXT;`, 'progress_status_reason column');
     await execute(`ALTER TABLE lead_master ADD COLUMN IF NOT EXISTS study_status_reason TEXT;`, 'study_status_reason column');
     await execute(`ALTER TABLE lead_master ADD COLUMN IF NOT EXISTS country VARCHAR(100);`, 'country column');
+    await execute(`ALTER TABLE lead_master ADD COLUMN IF NOT EXISTS reminder_snooze_until DATE NULL;`, 'reminder_snooze_until column');
     await execute(`
       UPDATE lead_master
       SET final_status = 'UNDER NEGOTIATION'

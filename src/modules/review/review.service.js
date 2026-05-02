@@ -2,6 +2,7 @@ const pool = require('../../config/db');
 const { isBD } = require('../../utils/role.utils');
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+let hasReminderSnoozeColumnCache = null;
 
 const normalizeUuidOrNull = (value, fieldName) => {
   if (value === undefined || value === null) return null;
@@ -29,6 +30,20 @@ const normalizeWeekStartDate = (data) => {
   if (data.week_start_date) return getWeekStartDate(data.week_start_date);
   if (data.review_date) return getWeekStartDate(data.review_date);
   return null;
+};
+
+const hasReminderSnoozeColumn = async () => {
+  if (hasReminderSnoozeColumnCache !== null) return hasReminderSnoozeColumnCache;
+  const result = await pool.query(
+    `SELECT 1
+     FROM information_schema.columns
+     WHERE table_schema = 'public'
+       AND table_name = 'lead_master'
+       AND column_name = 'reminder_snooze_until'
+     LIMIT 1`
+  );
+  hasReminderSnoozeColumnCache = result.rows.length > 0;
+  return hasReminderSnoozeColumnCache;
 };
 
 const canAccessLead = async (leadId, actor, db = pool) => {
@@ -171,6 +186,9 @@ exports.getPendingReminders = async (userId, weekStartDate, status) => {
     : getWeekStartDate(new Date());
 
   const normalizedStatus = status ? String(status).trim().toUpperCase() : 'PENDING';
+  const reminderSnoozeSelect = (await hasReminderSnoozeColumn())
+    ? 'lm.reminder_snooze_until'
+    : 'NULL::date AS reminder_snooze_until';
 
   const result = await pool.query(
     `SELECT
@@ -183,7 +201,7 @@ exports.getPendingReminders = async (userId, weekStartDate, status) => {
       lm.region,
       lm.priority,
       lm.status AS lead_status,
-      lm.reminder_snooze_until,
+      ${reminderSnoozeSelect},
       TO_CHAR($2::date, 'YYYY-MM-DD') AS week_start_date,
       (
         SELECT r.status
