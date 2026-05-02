@@ -19,6 +19,9 @@ const customerReturningClause = (cols) => {
     ? 'lead_rfq_enquiry_date'
     : 'NULL::date AS lead_rfq_enquiry_date';
   const activePart = cols.has('is_active') ? 'is_active' : 'TRUE AS is_active';
+  const approvedByPart = cols.has('approved_by') ? 'approved_by' : 'NULL::uuid AS approved_by';
+  const approvedAtPart = cols.has('approved_at') ? 'approved_at' : 'NULL::timestamp AS approved_at';
+  const updatedPart = cols.has('updated_at') ? 'updated_at' : 'NULL::timestamp AS updated_at';
   return [
     'id',
     'customer_name',
@@ -27,11 +30,11 @@ const customerReturningClause = (cols) => {
     'mobile',
     datePart,
     'status',
-    'approved_by',
-    'approved_at',
+    approvedByPart,
+    approvedAtPart,
     activePart,
     'created_at',
-    'updated_at',
+    updatedPart,
   ].join(', ');
 };
 
@@ -88,11 +91,16 @@ exports.createCustomer = async (data, actor) => {
 
   insertCols.push('status');
   pushParam(status);
-  insertCols.push('approved_by');
-  pushParam(approved_by);
 
-  insertCols.push('approved_at');
-  valueParts.push(isAdminUser ? 'CURRENT_TIMESTAMP' : 'NULL');
+  if (cols.has('approved_by')) {
+    insertCols.push('approved_by');
+    pushParam(approved_by);
+  }
+
+  if (cols.has('approved_at')) {
+    insertCols.push('approved_at');
+    valueParts.push(isAdminUser ? 'CURRENT_TIMESTAMP' : 'NULL');
+  }
 
   if (cols.has('is_active')) {
     insertCols.push('is_active');
@@ -146,18 +154,33 @@ exports.approveCustomer = async (id, actor) => {
 
   const cols = await getCustomerMasterColumns();
 
+  const setParts = [`status = 'APPROVED'`];
+  const vals = [];
+  let p = 1;
+
+  if (cols.has('approved_by')) {
+    setParts.push(`approved_by = $${p++}`);
+    vals.push(actor.id);
+  }
+  if (cols.has('approved_at')) {
+    setParts.push('approved_at = CURRENT_TIMESTAMP');
+  }
+  if (cols.has('is_active')) {
+    setParts.push('is_active = TRUE');
+  }
+  if (cols.has('updated_at')) {
+    setParts.push('updated_at = CURRENT_TIMESTAMP');
+  }
+
+  vals.push(id);
   const query = `
     UPDATE customer_master
-    SET status = 'APPROVED',
-        approved_by = $1,
-        approved_at = CURRENT_TIMESTAMP,
-        ${cols.has('is_active') ? 'is_active = TRUE,' : ''}
-        updated_at = CURRENT_TIMESTAMP
-    WHERE id = $2
+    SET ${setParts.join(', ')}
+    WHERE id = $${p}
     RETURNING ${customerReturningClause(cols)}
   `;
 
-  const result = await pool.query(query, [actor.id, id]);
+  const result = await pool.query(query, vals);
   return result.rows[0] || null;
 };
 
@@ -171,10 +194,11 @@ exports.toggleCustomerActive = async (id, isActive, actor) => {
     throw new Error('customer_master.is_active is not available; migrate the database to use this feature');
   }
 
+  const touchUpdated = cols.has('updated_at') ? ', updated_at = CURRENT_TIMESTAMP' : '';
   const query = `
     UPDATE customer_master
-    SET is_active = CASE WHEN $1::boolean IS NULL THEN NOT is_active ELSE $1::boolean END,
-        updated_at = CURRENT_TIMESTAMP
+    SET is_active = CASE WHEN $1::boolean IS NULL THEN NOT is_active ELSE $1::boolean END
+        ${touchUpdated}
     WHERE id = $2
     RETURNING ${customerReturningClause(cols)};
   `;
