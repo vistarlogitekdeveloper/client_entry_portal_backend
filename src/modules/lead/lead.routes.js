@@ -5,6 +5,7 @@ const authMiddleware = require('../../middleware/auth.middleware');
 const roleMiddleware = require('../../middleware/role.middleware');
 
 router.get('/', authMiddleware, roleMiddleware(['BD', 'MANAGER', 'ADMIN']), controller.getAll);
+router.get('/public/won', controller.getAllWonPublic);
 router.get('/customers/names', authMiddleware, roleMiddleware(['BD', 'MANAGER', 'ADMIN']), controller.getUniqueCustomerNames);
 router.get('/export', authMiddleware, roleMiddleware(['BD', 'MANAGER', 'ADMIN']), controller.exportExcel);
 router.get('/:id', authMiddleware, roleMiddleware(['BD', 'MANAGER', 'ADMIN']), controller.getById);

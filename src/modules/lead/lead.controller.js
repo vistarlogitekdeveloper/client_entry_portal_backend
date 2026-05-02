@@ -10,6 +10,15 @@ exports.create = async (req, res) => {
   }
 };
 
+exports.getAllWonPublic = async (req, res) => {
+  try {
+    const leads = await service.getAllWonLeadsPublic();
+    res.json({ success: true, data: leads, count: leads.length });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
 // ✅ GET ALL (WITH FILTERS)
 exports.getAll = async (req, res) => {
   try {

@@ -319,6 +319,13 @@ exports.getLeads = async (filters, actor) => {
   return { leads, stats };
 };
 
+exports.getAllWonLeadsPublic = async () => {
+  const result = await pool.query(
+    `SELECT * FROM lead_master WHERE final_status = 'WON' ORDER BY created_at DESC`
+  );
+  return result.rows;
+};
+
 // ✅ DISTINCT customer (company) names — one row per unique name after trim
 exports.getUniqueCompanyNames = async (actor) => {
   let query = `
