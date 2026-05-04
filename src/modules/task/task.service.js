@@ -1,4 +1,20 @@
 const pool = require('../../config/db');
+const userService = require('../user/user.service');
+const { sendPushNotification } = require('../../utils/notification.utils');
+
+// ── Auto-migration: ensure created_by column exists ──────────────────────────
+(async () => {
+  try {
+    await pool.query(`
+      ALTER TABLE tasks
+      ADD COLUMN IF NOT EXISTS created_by UUID REFERENCES users(id) ON DELETE SET NULL
+    `);
+    console.log('[Task] Migration: created_by column ensured.');
+  } catch (err) {
+    console.warn('[Task] Migration warning:', err.message);
+  }
+})();
+
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 const isAdmin = (actor) => actor?.role?.toUpperCase() === 'ADMIN';
@@ -44,9 +60,11 @@ exports.getTasks = async (actor, filters = {}) => {
        t.assigned_to,
        t.created_at,
        t.updated_at,
-       u.name AS assigned_to_name
+       u.name  AS assigned_to_name,
+       c.name  AS created_by_name
      FROM tasks t
-     JOIN users u ON u.id = t.assigned_to
+     JOIN  users u ON u.id = t.assigned_to
+     LEFT JOIN users c ON c.id = t.created_by
      ${where}
      ORDER BY
        CASE t.priority WHEN 'HIGH' THEN 1 WHEN 'MEDIUM' THEN 2 ELSE 3 END,
@@ -60,22 +78,48 @@ exports.getTasks = async (actor, filters = {}) => {
 
 // ── CREATE task ───────────────────────────────────────────────────────────────
 exports.createTask = async (actor, body) => {
-  const { title, description, priority = 'MEDIUM', due_date } = body;
+  const { title, description, priority = 'MEDIUM', due_date, assigned_to } = body;
   if (!title?.trim()) throw new Error('Title is required');
 
+  // Admin can assign to another user; everyone else assigns to self
+  let assignedUserId = actor.id;
+  if (isAdmin(actor) && assigned_to) {
+    assignedUserId = assigned_to;
+  }
+
   const result = await pool.query(
-    `INSERT INTO tasks (title, description, priority, due_date, assigned_to)
-     VALUES ($1, $2, $3, $4, $5)
+    `INSERT INTO tasks (title, description, priority, due_date, assigned_to, created_by)
+     VALUES ($1, $2, $3, $4, $5, $6)
      RETURNING *`,
     [
       title.trim(),
       description?.trim() || null,
       priority.toUpperCase(),
       due_date || null,
-      actor.id,
+      assignedUserId,
+      actor.id,          // always the logged-in user
     ]
   );
-  return result.rows[0];
+  const task = result.rows[0];
+
+  // Send FCM push notification to the assigned BD user (non-fatal)
+  if (isAdmin(actor) && assigned_to && assigned_to !== actor.id) {
+    try {
+      const assignedUser = await userService.findOne(assigned_to);
+      if (assignedUser?.fcm_token) {
+        await sendPushNotification(
+          assignedUser.fcm_token,
+          '📋 New Task Assigned',
+          `You have a new task: "${title.trim()}"`,
+          { type: 'TASK_ASSIGNED', task_id: String(task.id) }
+        );
+      }
+    } catch (notifErr) {
+      console.warn('[Task] Notification failed (non-fatal):', notifErr.message);
+    }
+  }
+
+  return task;
 };
 
 // ── UPDATE task ───────────────────────────────────────────────────────────────
