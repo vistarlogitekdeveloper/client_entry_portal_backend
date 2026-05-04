@@ -121,12 +121,15 @@ exports.updateStatus = async (actor, taskId, status) => {
     throw new Error(`Invalid status. Must be one of: ${validStatuses.join(', ')}`);
   }
 
+  const ownerFilter = isAdmin(actor) ? '' : 'AND assigned_to = $3';
+  const values = isAdmin(actor) ? [normalized, taskId] : [normalized, taskId, actor.id];
+
   const result = await pool.query(
     `UPDATE tasks
      SET status = $1, updated_at = CURRENT_TIMESTAMP
-     WHERE id = $2 AND assigned_to = $3
+     WHERE id = $2 ${ownerFilter}
      RETURNING *`,
-    [normalized, taskId, actor.id]
+    values
   );
 
   if (!result.rows[0]) throw new Error('Task not found or access denied');
