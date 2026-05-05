@@ -33,18 +33,18 @@ const sendInstantHONotification = async (docName, expiryDate) => {
 exports.create = async (data, creatorId) => {
   const { 
     sheet_name, 
-    customer_id, 
-    project_name, 
-    effective_date, 
+    customer_id                = null, 
+    project_name               = null, 
+    effective_date             = null, 
     expiry_date, 
-    wage_revision_applicable, 
-    min_wage_revision_date, 
-    billing_rate_revision_date, 
-    approval_status, 
-    responsible_person, 
-    status, 
-    remarks,
-    yearly_increment
+    wage_revision_applicable   = null, 
+    min_wage_revision_date     = null, 
+    billing_rate_revision_date = null, 
+    approval_status            = null, 
+    responsible_person         = null, 
+    status                     = 'ACTIVE', 
+    remarks                    = null,
+    yearly_increment           = null
   } = data;
 
   const query = `
@@ -129,18 +129,18 @@ exports.findOne = async (id) => {
 exports.update = async (id, data) => {
   const { 
     sheet_name, 
-    customer_id, 
-    project_name, 
-    effective_date, 
+    customer_id                = null, 
+    project_name               = null, 
+    effective_date             = null, 
     expiry_date, 
-    wage_revision_applicable, 
-    min_wage_revision_date, 
-    billing_rate_revision_date, 
-    approval_status, 
-    responsible_person, 
-    status, 
-    remarks,
-    yearly_increment
+    wage_revision_applicable   = null, 
+    min_wage_revision_date     = null, 
+    billing_rate_revision_date = null, 
+    approval_status            = null, 
+    responsible_person         = null, 
+    status                     = 'ACTIVE', 
+    remarks                    = null,
+    yearly_increment           = null
   } = data;
 
   const query = `

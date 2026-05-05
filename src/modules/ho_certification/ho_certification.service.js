@@ -33,15 +33,15 @@ const sendInstantHONotification = async (docName, expiryDate) => {
 exports.create = async (data, creatorId) => {
   const { 
     certification_name, 
-    certification_type, 
-    issuing_authority, 
-    location_project, 
-    responsible_person, 
-    status, 
-    issue_date, 
+    certification_type = null, 
+    issuing_authority  = null, 
+    location_project   = null, 
+    responsible_person = null, 
+    status             = 'ACTIVE', 
+    issue_date         = null, 
     expiry_date, 
-    remarks,
-    customer_id = null
+    remarks            = null,
+    customer_id        = null
   } = data;
 
   const client = await pool.connect();
@@ -135,15 +135,15 @@ exports.findOne = async (id) => {
 exports.update = async (id, data) => {
   const { 
     certification_name, 
-    certification_type, 
-    issuing_authority, 
-    location_project, 
-    responsible_person, 
-    status, 
-    issue_date, 
+    certification_type = null, 
+    issuing_authority  = null, 
+    location_project   = null, 
+    responsible_person = null, 
+    status             = 'ACTIVE', 
+    issue_date         = null, 
     expiry_date, 
-    remarks,
-    customer_id = null
+    remarks            = null,
+    customer_id        = null
   } = data;
 
   const query = `

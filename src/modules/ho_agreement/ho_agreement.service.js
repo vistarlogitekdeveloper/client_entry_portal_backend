@@ -31,20 +31,19 @@ const sendInstantHONotification = async (docName, expiryDate) => {
 };
 
 exports.create = async (data, creatorId) => {
-  const { 
     agreement_name, 
-    vendor_name, 
-    agreement_type, 
-    start_date, 
+    vendor_name          = null, 
+    agreement_type       = null, 
+    start_date           = null, 
     expiry_date, 
-    responsible_person, 
-    location_project, 
-    status, 
-    remarks,
+    responsible_person   = null, 
+    location_project     = null, 
+    status               = 'ACTIVE', 
+    remarks              = null,
     // optional fields
-    customer_id       = null,
-    renewal_frequency = null,
-    department        = null,
+    customer_id          = null,
+    renewal_frequency    = null,
+    department           = null,
     // Excel report fields
     project_current_cost = null,
     rent                 = null,
@@ -176,20 +175,19 @@ exports.findOne = async (id) => {
 };
 
 exports.update = async (id, data) => {
-  const { 
     agreement_name, 
-    vendor_name, 
-    agreement_type, 
-    start_date, 
+    vendor_name          = null, 
+    agreement_type       = null, 
+    start_date           = null, 
     expiry_date, 
-    responsible_person, 
-    location_project, 
-    status, 
-    remarks,
+    responsible_person   = null, 
+    location_project     = null, 
+    status               = 'ACTIVE', 
+    remarks              = null,
     // optional fields
-    customer_id       = null,
-    renewal_frequency = null,
-    department        = null,
+    customer_id          = null,
+    renewal_frequency    = null,
+    department           = null,
     // Excel report fields
     project_current_cost = null,
     rent                 = null,
