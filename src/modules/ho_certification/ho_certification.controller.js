@@ -102,7 +102,24 @@ exports.viewFile = async (req, res) => {
     const file = await service.getFileData(req.params.id);
     if (!file) return res.status(404).json({ success: false, message: 'File not found' });
 
-    res.setHeader('Content-Type', file.file_type);
+    // Helper to guess mime type if generic
+    const getMimeType = (fileName, existingType) => {
+      if (existingType && existingType !== 'application/octet-stream' && existingType !== '') return existingType;
+      const ext = fileName.split('.').pop().toLowerCase();
+      switch(ext) {
+        case 'pdf': return 'application/pdf';
+        case 'jpg':
+        case 'jpeg': return 'image/jpeg';
+        case 'png': return 'image/png';
+        case 'xlsx': return 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+        case 'xls': return 'application/vnd.ms-excel';
+        default: return existingType || 'application/octet-stream';
+      }
+    };
+
+    const mimeType = getMimeType(file.file_name, file.file_type);
+
+    res.setHeader('Content-Type', mimeType);
     res.setHeader('Content-Disposition', `inline; filename="${file.file_name}"`);
     res.set('Cache-Control', 'no-cache');
     res.send(file.file_data);
