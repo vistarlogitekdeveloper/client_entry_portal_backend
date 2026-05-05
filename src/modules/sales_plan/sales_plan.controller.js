@@ -34,7 +34,7 @@ exports.updateRow = async (req, res) => {
       return res.status(403).json({ success: false, message: 'Forbidden' });
     }
 
-    const userId = parseInt(req.params.userId, 10);
+    const userId = req.params.userId;
     const fiscalYear = req.query.year || _currentFiscalYear();
     const updated = await service.upsertRow(userId, fiscalYear, req.body);
     res.json({ success: true, data: updated });

@@ -376,6 +376,24 @@ const initDb = async () => {
       );
     `, 'HO Certification files');
 
+    // Sales Plan (BD/MANAGER monthly plan vs. actual)
+    const SP_MONTHS = ['apr','may','jun','jul','aug','sep','oct','nov','dec','jan','feb','mar'];
+    const spMonthCols = SP_MONTHS.flatMap((m) => [
+      `${m}_plan   NUMERIC(12,2) NOT NULL DEFAULT 0`,
+      `${m}_actual NUMERIC(12,2) NOT NULL DEFAULT 0`,
+    ]).join(',\n        ');
+    await execute(`
+      CREATE TABLE IF NOT EXISTS sales_plan (
+        id          SERIAL PRIMARY KEY,
+        user_id     UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        fiscal_year VARCHAR(9) NOT NULL,
+        ${spMonthCols},
+        created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        UNIQUE (user_id, fiscal_year)
+      );
+    `, 'Sales plan table');
+
     // Notifications
     await execute(`
       CREATE TABLE IF NOT EXISTS ho_notifications (

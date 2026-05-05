@@ -18,7 +18,7 @@ const monthCols = MONTHS.flatMap((m) => [
 const sql = `
 CREATE TABLE IF NOT EXISTS sales_plan (
   id          SERIAL PRIMARY KEY,
-  user_id     INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  user_id     UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   fiscal_year VARCHAR(9) NOT NULL,          -- e.g. "2026-2027"
   ${monthCols},
   created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
