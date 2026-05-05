@@ -249,6 +249,47 @@ const retryFailedNotifications = async () => {
   }
 };
 
+/**
+ * Automatically transitions ACTIVE documents to EXPIRED if their expiry_date has passed.
+ */
+const autoExpireDocuments = async () => {
+  console.log('[ho-expiry] Checking for documents to auto-expire...');
+  try {
+    const today = "(CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date";
+    
+    // Agreements
+    const agResult = await pool.query(`
+      UPDATE ho_agreements 
+      SET status = 'EXPIRED', updated_at = CURRENT_TIMESTAMP 
+      WHERE status = 'ACTIVE' AND expiry_date < ${today}
+      RETURNING id
+    `);
+    
+    // Cost Sheets
+    const csResult = await pool.query(`
+      UPDATE ho_cost_sheets 
+      SET status = 'EXPIRED', updated_at = CURRENT_TIMESTAMP 
+      WHERE status = 'ACTIVE' AND expiry_date < ${today}
+      RETURNING id
+    `);
+    
+    // Certifications
+    const certResult = await pool.query(`
+      UPDATE ho_certifications 
+      SET status = 'EXPIRED', updated_at = CURRENT_TIMESTAMP 
+      WHERE status = 'ACTIVE' AND expiry_date < ${today}
+      RETURNING id
+    `);
+    
+    const total = (agResult.rowCount || 0) + (csResult.rowCount || 0) + (certResult.rowCount || 0);
+    if (total > 0) {
+      console.log(`[ho-expiry] Auto-expired ${total} documents.`);
+    }
+  } catch (err) {
+    console.error('[ho-expiry] Auto-expire job failed:', err.message);
+  }
+};
+
 const runHODocumentExpiryJob = async () => {
   console.log('[ho-expiry] Running daily expiry check...');
   const documents = await findExpiringDocuments();
@@ -270,7 +311,15 @@ const startHOScheduler = () => {
     timezone: "Asia/Kolkata"
   });
 
-  console.log('[ho-expiry] Head Office scheduler started (Daily at 10:00 Asia/Kolkata, Retries hourly)');
+  console.log('[ho-expiry] Head Office scheduler started (Daily at 10:00 Asia/Kolkata, Auto-Expire at 00:01, Retries hourly)');
+  
+  // Run auto-expire check daily at 12:01 AM
+  cron.schedule('1 0 * * *', autoExpireDocuments, {
+    timezone: "Asia/Kolkata"
+  });
+
+  // Run auto-expire check once immediately on startup
+  autoExpireDocuments();
 };
 
 module.exports = {
