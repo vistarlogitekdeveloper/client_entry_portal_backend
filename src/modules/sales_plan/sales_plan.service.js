@@ -85,6 +85,17 @@ exports.getRowForUser = async (userId, fiscalYear) => {
 };
 
 /**
+ * Delete a row for (userId, fiscalYear). Returns true if a row was deleted.
+ */
+exports.deleteRow = async (userId, fiscalYear) => {
+  const result = await pool.query(
+    `DELETE FROM sales_plan WHERE user_id = $1 AND fiscal_year = $2`,
+    [userId, fiscalYear],
+  );
+  return result.rowCount > 0;
+};
+
+/**
  * Get all BD/MANAGER users (for Admin to seed rows or display names).
  */
 exports.getSalesUsers = async () => {

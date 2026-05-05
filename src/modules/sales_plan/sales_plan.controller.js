@@ -43,6 +43,27 @@ exports.updateRow = async (req, res) => {
   }
 };
 
+/** DELETE /api/sales-plan/:userId?year=2026-2027
+ *  Admin only — remove a user's row for the year.
+ */
+exports.deleteRow = async (req, res) => {
+  try {
+    const role = (req.user.role || '').toUpperCase();
+    if (role !== 'ADMIN') {
+      return res.status(403).json({ success: false, message: 'Forbidden' });
+    }
+    const userId = req.params.userId;
+    const fiscalYear = req.query.year || _currentFiscalYear();
+    const removed = await service.deleteRow(userId, fiscalYear);
+    if (!removed) {
+      return res.status(404).json({ success: false, message: 'Row not found' });
+    }
+    res.json({ success: true });
+  } catch (err) {
+    res.status(400).json({ success: false, message: err.message });
+  }
+};
+
 /** GET /api/sales-plan/users  — Admin: list of BD/MANAGER users */
 exports.getSalesUsers = async (req, res) => {
   try {

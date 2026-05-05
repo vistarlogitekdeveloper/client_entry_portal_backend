@@ -12,4 +12,7 @@ router.get('/users', authMiddleware, controller.getSalesUsers);
 // PUT  /api/sales-plan/:userId?year=... — Admin: update any user's row
 router.put('/:userId', authMiddleware, controller.updateRow);
 
+// DELETE /api/sales-plan/:userId?year=... — Admin: remove a user's row
+router.delete('/:userId', authMiddleware, controller.deleteRow);
+
 module.exports = router;
