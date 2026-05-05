@@ -31,6 +31,7 @@ const sendInstantHONotification = async (docName, expiryDate) => {
 };
 
 exports.create = async (data, creatorId) => {
+  const { 
     agreement_name, 
     vendor_name          = null, 
     agreement_type       = null, 
@@ -175,6 +176,7 @@ exports.findOne = async (id) => {
 };
 
 exports.update = async (id, data) => {
+  const { 
     agreement_name, 
     vendor_name          = null, 
     agreement_type       = null, 
