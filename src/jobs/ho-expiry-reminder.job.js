@@ -59,8 +59,14 @@ const findExpiringDocuments = async () => {
  */
 const generateHOExpiryEmailHtml = (doc) => {
   const expiryDateStr = doc.expiry_date.toISOString().split('T')[0];
-  const today = new Date();
-  const diffDays = Math.ceil((doc.expiry_date - today) / (1000 * 60 * 60 * 24));
+  
+  // Use Asia/Kolkata for "today" to calculate diff accurately
+  const today = new Date(new Date().toLocaleString("en-US", {timeZone: "Asia/Kolkata"}));
+  today.setHours(0,0,0,0);
+  const expiry = new Date(doc.expiry_date);
+  expiry.setHours(0,0,0,0);
+  
+  const diffDays = Math.round((expiry - today) / (1000 * 60 * 60 * 24));
 
   // Decide color based on urgency
   const isCritical = diffDays <= 7;
@@ -144,8 +150,7 @@ const processNotifications = async (documents) => {
 
   const tokens = await userService.getHeadOfficeTokens();
   if (tokens.length === 0) {
-    console.log('[ho-expiry] No Head Office users with FCM tokens found.');
-    return;
+    console.log('[ho-expiry] No Head Office users with FCM tokens found. Proceeding with Emails only.');
   }
 
   // Get all Head Office user IDs to log notifications
