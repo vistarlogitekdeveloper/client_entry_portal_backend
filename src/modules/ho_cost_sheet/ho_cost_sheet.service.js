@@ -43,7 +43,8 @@ exports.create = async (data, creatorId) => {
     approval_status, 
     responsible_person, 
     status, 
-    remarks 
+    remarks,
+    yearly_increment
   } = data;
 
   const query = `
@@ -51,16 +52,16 @@ exports.create = async (data, creatorId) => {
       sheet_name, customer_id, project_name, effective_date, 
       expiry_date, wage_revision_applicable, min_wage_revision_date, 
       billing_rate_revision_date, approval_status, responsible_person, 
-      status, remarks, created_by
+      status, remarks, created_by, yearly_increment
     )
-    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
     RETURNING *;
   `;
   const result = await pool.query(query, [
     sheet_name, customer_id, project_name, effective_date, 
     expiry_date, wage_revision_applicable, min_wage_revision_date, 
     billing_rate_revision_date, approval_status, responsible_person, 
-    status ? status.toUpperCase() : 'ACTIVE', remarks, creatorId
+    status ? status.toUpperCase() : 'ACTIVE', remarks, creatorId, yearly_increment
   ]);
   const sheet = result.rows[0];
 
@@ -138,7 +139,8 @@ exports.update = async (id, data) => {
     approval_status, 
     responsible_person, 
     status, 
-    remarks 
+    remarks,
+    yearly_increment
   } = data;
 
   const query = `
@@ -155,16 +157,17 @@ exports.update = async (id, data) => {
       approval_status = $9, 
       responsible_person = $10, 
       status = $11, 
-      remarks = $12, 
+      remarks = $12,
+      yearly_increment = $13,
       updated_at = CURRENT_TIMESTAMP
-    WHERE id = $13
+    WHERE id = $14
     RETURNING *;
   `;
   const result = await pool.query(query, [
     sheet_name, customer_id, project_name, effective_date, 
     expiry_date, wage_revision_applicable, min_wage_revision_date, 
     billing_rate_revision_date, approval_status, responsible_person, 
-    status ? status.toUpperCase() : 'ACTIVE', remarks, id
+    status ? status.toUpperCase() : 'ACTIVE', remarks, yearly_increment, id
   ]);
   
   if (result.rows[0]) {
@@ -222,6 +225,7 @@ exports.exportToExcel = async (filters) => {
     'Bill Rate Rev Date': item.billing_rate_revision_date ? new Date(item.billing_rate_revision_date).toLocaleDateString() : 'N/A',
     'Responsible Person': item.responsible_person || 'N/A',
     'Status': item.status,
+    'Yearly Increment': item.yearly_increment || '',
     'Remarks': item.remarks || ''
   }));
 

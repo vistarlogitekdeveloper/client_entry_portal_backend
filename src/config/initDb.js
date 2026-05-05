@@ -249,7 +249,8 @@ const initDb = async () => {
       'wh_area_sq_ft NUMERIC(10,2)',
       'lock_in_period VARCHAR(100)',
       'notice_period VARCHAR(100)',
-      'agreement_period VARCHAR(100)'
+      'agreement_period VARCHAR(100)',
+      'yearly_increment VARCHAR(255)'
     ];
     for (const col of agreementCols) {
       await execute(`ALTER TABLE ho_agreements ADD COLUMN IF NOT EXISTS ${col};`, `Agreement ${col.split(' ')[0]} column`);
@@ -283,7 +284,8 @@ const initDb = async () => {
       'approval_status VARCHAR(100)',
       'responsible_person VARCHAR(255)',
       'remarks TEXT',
-      'created_by UUID REFERENCES users(id) ON DELETE SET NULL'
+      'created_by UUID REFERENCES users(id) ON DELETE SET NULL',
+      'yearly_increment VARCHAR(255)'
     ];
     for (const col of costSheetCols) {
       await execute(`ALTER TABLE ho_cost_sheets ADD COLUMN IF NOT EXISTS ${col};`, `CostSheet ${col.split(' ')[0]} column`);

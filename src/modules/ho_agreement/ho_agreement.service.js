@@ -51,7 +51,8 @@ exports.create = async (data, creatorId) => {
     wh_area_sq_ft        = null,
     lock_in_period       = null,
     notice_period        = null,
-    agreement_period     = null
+    agreement_period     = null,
+    yearly_increment     = null
   } = data;
   
   const client = await pool.connect();
@@ -62,16 +63,16 @@ exports.create = async (data, creatorId) => {
         agreement_name, customer_id, vendor_name, agreement_type, 
         start_date, expiry_date, renewal_frequency, responsible_person, 
         department, location_project, status, remarks, created_by,
-        project_current_cost, rent, wh_area_sq_ft, lock_in_period, notice_period, agreement_period
+        project_current_cost, rent, wh_area_sq_ft, lock_in_period, notice_period, agreement_period, yearly_increment
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
       RETURNING *;
     `;
     const result = await client.query(query, [
       agreement_name, customer_id, vendor_name, agreement_type, 
       start_date, expiry_date, renewal_frequency, responsible_person, 
       department, location_project, (status || 'ACTIVE').toUpperCase(), remarks, creatorId,
-      project_current_cost, rent, wh_area_sq_ft, lock_in_period, notice_period, agreement_period
+      project_current_cost, rent, wh_area_sq_ft, lock_in_period, notice_period, agreement_period, yearly_increment
     ]);
     const agreement = result.rows[0];
 
@@ -195,7 +196,8 @@ exports.update = async (id, data) => {
     wh_area_sq_ft        = null,
     lock_in_period       = null,
     notice_period        = null,
-    agreement_period     = null
+    agreement_period     = null,
+    yearly_increment     = null
   } = data;
 
   const query = `
@@ -219,8 +221,9 @@ exports.update = async (id, data) => {
       lock_in_period = $16,
       notice_period = $17,
       agreement_period = $18,
+      yearly_increment = $19,
       updated_at = CURRENT_TIMESTAMP
-    WHERE id = $19
+    WHERE id = $20
     RETURNING *;
   `;
   const result = await pool.query(query, [
@@ -242,6 +245,7 @@ exports.update = async (id, data) => {
     lock_in_period,
     notice_period,
     agreement_period,
+    yearly_increment,
     id
   ]);
   
@@ -286,6 +290,7 @@ exports.exportToExcel = async (filters = {}) => {
     { header: 'Lock In Period', key: 'lock_in', width: 14 },
     { header: 'Notice Period', key: 'notice', width: 14 },
     { header: 'Agreement Period', key: 'agreement_period', width: 16 },
+    { header: 'Yearly Increment', key: 'yearly_increment', width: 16 },
     { header: 'Remark', key: 'remarks', width: 35 }
   ];
 
@@ -324,6 +329,7 @@ exports.exportToExcel = async (filters = {}) => {
       lock_in: a.lock_in_period || '',
       notice: a.notice_period || '',
       agreement_period: a.agreement_period || '',
+      yearly_increment: a.yearly_increment || '',
       remarks: a.remarks || ''
     });
 
