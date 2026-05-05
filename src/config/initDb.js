@@ -217,9 +217,12 @@ const initDb = async () => {
         customer_name VARCHAR(255) NOT NULL,
         department VARCHAR(100),
         status VARCHAR(50) DEFAULT 'ACTIVE',
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
     `, 'HO Customers table');
+
+    await execute(`ALTER TABLE ho_customers ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;`, 'ho_customers updated_at column');
 
     await execute(`
       CREATE TABLE IF NOT EXISTS ho_agreements (
@@ -228,9 +231,12 @@ const initDb = async () => {
         customer_id UUID REFERENCES ho_customers(id) ON DELETE SET NULL,
         expiry_date DATE NOT NULL,
         status VARCHAR(50) DEFAULT 'ACTIVE',
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
     `, 'HO Agreements base table');
+
+    await execute(`ALTER TABLE ho_agreements ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;`, 'ho_agreements updated_at column');
 
     // Migration for expanded Agreement fields
     const agreementCols = [
@@ -270,9 +276,12 @@ const initDb = async () => {
         sheet_name VARCHAR(255) NOT NULL,
         expiry_date DATE NOT NULL,
         status VARCHAR(50) DEFAULT 'ACTIVE',
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
     `, 'HO Cost sheets base table');
+
+    await execute(`ALTER TABLE ho_cost_sheets ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;`, 'ho_cost_sheets updated_at column');
 
     const costSheetCols = [
       'customer_id UUID REFERENCES ho_customers(id) ON DELETE SET NULL',
@@ -305,9 +314,12 @@ const initDb = async () => {
         certification_name VARCHAR(255) NOT NULL,
         expiry_date DATE NOT NULL,
         status VARCHAR(50) DEFAULT 'ACTIVE',
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
     `, 'HO Certifications base table');
+
+    await execute(`ALTER TABLE ho_certifications ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;`, 'ho_certifications updated_at column');
 
     const certificationCols = [
       'customer_id UUID REFERENCES ho_customers(id) ON DELETE SET NULL',
