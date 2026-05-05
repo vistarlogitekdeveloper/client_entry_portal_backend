@@ -6,7 +6,7 @@ const userService = require('../user/user.service');
 
 const sendInstantHONotification = async (docName, expiryDate) => {
   try {
-    const title = 'Near Expiry Alert (Certification)';
+    const title = 'Near Expiry Alert (Instant - Certification)';
     const message = `The certification "${docName}" is expiring soon on ${expiryDate}.`;
 
     // Send Push Notification
@@ -20,11 +20,14 @@ const sendInstantHONotification = async (docName, expiryDate) => {
       );
     }
 
-    // Send Email Notification
-    const emails = await userService.getHeadOfficeEmails();
-    if (emails.length > 0) {
-      await sendEmail(emails, title, message);
-    }
+    // Send Email Notification (Consistent with Daily Alerts)
+    const toRecipients = ['manager.commercial@vistarlogitek.com'];
+    const ccRecipients = [
+      'prashant.tamhankar@vistarlogitek.com',
+      'Flutter.developer@vistarlogitek.com'
+    ];
+
+    await sendEmail(toRecipients, title, message, null, ccRecipients);
   } catch (err) {
     console.error('Failed to send instant HO notification:', err.message);
   }
