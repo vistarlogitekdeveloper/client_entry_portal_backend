@@ -111,9 +111,23 @@ exports.findAll = async (filters = {}) => {
   }
 
   if (filters.expiry_days !== undefined && filters.expiry_days !== null) {
-    query += ` AND c.expiry_date >= (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date AND c.expiry_date <= (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date + CAST($${i} || ' days' AS INTERVAL)`;
-    values.push(filters.expiry_days);
-    i++;
+    const days = parseInt(filters.expiry_days);
+    if (days === 0) {
+      query += ` AND c.expiry_date = (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date`;
+    } else if (days === 7) {
+      query += ` AND c.expiry_date > (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date 
+                 AND c.expiry_date <= (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date + INTERVAL '7 days'`;
+    } else if (days === 30) {
+      query += ` AND c.expiry_date > (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date + INTERVAL '7 days'
+                 AND c.expiry_date <= (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date + INTERVAL '30 days'`;
+    } else {
+      query += ` AND c.expiry_date >= (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date 
+                 AND c.expiry_date <= (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date + CAST($${i} || ' days' AS INTERVAL)`;
+    }
+    if (days !== 0 && days !== 7 && days !== 30) {
+      values.push(filters.expiry_days);
+      i++;
+    }
   }
 
   query += ' ORDER BY c.expiry_date ASC';
