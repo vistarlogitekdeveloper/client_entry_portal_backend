@@ -140,3 +140,12 @@ exports.exportExcel = async (req, res) => {
     res.status(500).json({ success: false, message: err.message });
   }
 };
+exports.deleteFile = async (req, res) => {
+  try {
+    const data = await service.deleteFile(req.params.id);
+    if (!data) return res.status(404).json({ success: false, message: 'File not found' });
+    res.json({ success: true, data });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};

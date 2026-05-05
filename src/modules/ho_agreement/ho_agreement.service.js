@@ -413,3 +413,10 @@ exports.getFiles = async (agreementId) => {
   const result = await pool.query(query, [agreementId]);
   return result.rows;
 };
+
+exports.deleteFile = async (fileId) => {
+  const query = 'DELETE FROM ho_agreement_files WHERE id = $1 RETURNING id';
+  const result = await pool.query(query, [fileId]);
+  return result.rows[0];
+};
+

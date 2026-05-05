@@ -18,5 +18,7 @@ router.delete('/:id', controller.delete);
 router.post('/:id/upload', controller.upload.array('files', 10), controller.uploadFiles);
 router.get('/:id/files', controller.getFiles);
 router.get('/files/:id/view', controller.viewFile);
+router.delete('/files/:id', controller.deleteFile);
+
 
 module.exports = router;

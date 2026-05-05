@@ -226,6 +226,13 @@ exports.getFiles = async (certificationId) => {
   return result.rows;
 };
 
+exports.deleteFile = async (fileId) => {
+  const query = 'DELETE FROM ho_certification_files WHERE id = $1 RETURNING id';
+  const result = await pool.query(query, [fileId]);
+  return result.rows[0];
+};
+
+
 exports.exportToExcel = async (filters) => {
   const data = await this.findAll(filters);
   
