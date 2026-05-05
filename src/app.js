@@ -43,6 +43,7 @@ const hoAgreementRoutes = require('./modules/ho_agreement/ho_agreement.routes');
 const hoCostSheetRoutes = require('./modules/ho_cost_sheet/ho_cost_sheet.routes');
 const hoCertificationRoutes = require('./modules/ho_certification/ho_certification.routes');
 const taskRoutes = require('./modules/task/task.routes');
+const salesPlanRoutes = require('./modules/sales_plan/sales_plan.routes');
 
 
 app.use('/api/auth', authRoutes);
@@ -59,6 +60,7 @@ app.use('/api/agreements', hoAgreementRoutes);
 app.use('/api/cost-sheets', hoCostSheetRoutes);
 app.use('/api/certifications', hoCertificationRoutes);
 app.use('/api/tasks', taskRoutes);
+app.use('/api/sales-plan', salesPlanRoutes);
 
 
 module.exports = app;
