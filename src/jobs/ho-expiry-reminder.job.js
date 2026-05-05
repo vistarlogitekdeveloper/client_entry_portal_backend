@@ -14,7 +14,7 @@ const findExpiringDocuments = async () => {
     FROM ho_agreements a
     LEFT JOIN users u ON a.created_by = u.id
     WHERE a.status = 'ACTIVE' 
-      AND a.expiry_date IN (CURRENT_DATE + 30, CURRENT_DATE + 15, CURRENT_DATE + 7, CURRENT_DATE + 1)
+      AND a.expiry_date IN (CURRENT_DATE + 30, CURRENT_DATE + 15, CURRENT_DATE + 7, CURRENT_DATE + 1, CURRENT_DATE)
     
     UNION ALL
     
@@ -22,7 +22,7 @@ const findExpiringDocuments = async () => {
     FROM ho_cost_sheets cs
     LEFT JOIN users u ON cs.created_by = u.id
     WHERE cs.status = 'ACTIVE'
-      AND cs.expiry_date IN (CURRENT_DATE + 30, CURRENT_DATE + 15, CURRENT_DATE + 7, CURRENT_DATE + 1)
+      AND cs.expiry_date IN (CURRENT_DATE + 30, CURRENT_DATE + 15, CURRENT_DATE + 7, CURRENT_DATE + 1, CURRENT_DATE)
 
     UNION ALL
     
@@ -30,7 +30,7 @@ const findExpiringDocuments = async () => {
     FROM ho_certifications cert
     LEFT JOIN users u ON cert.created_by = u.id
     WHERE cert.status = 'ACTIVE'
-      AND cert.expiry_date IN (CURRENT_DATE + 30, CURRENT_DATE + 15, CURRENT_DATE + 7, CURRENT_DATE + 1);
+      AND cert.expiry_date IN (CURRENT_DATE + 30, CURRENT_DATE + 15, CURRENT_DATE + 7, CURRENT_DATE + 1, CURRENT_DATE);
   `;
   const result = await pool.query(query);
   return result.rows;
