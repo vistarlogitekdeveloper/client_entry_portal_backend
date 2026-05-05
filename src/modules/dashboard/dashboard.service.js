@@ -246,27 +246,27 @@ exports.getHODashboardStats = async () => {
     SELECT
       -- Agreements
       (SELECT COUNT(*)::INTEGER FROM ho_agreements WHERE status = 'ACTIVE') AS ag_active,
-      (SELECT COUNT(*)::INTEGER FROM ho_agreements WHERE expiry_date > CURRENT_DATE AND expiry_date <= CURRENT_DATE + INTERVAL '30 days') AS ag_expiring_30,
-      (SELECT COUNT(*)::INTEGER FROM ho_agreements WHERE expiry_date > CURRENT_DATE AND expiry_date <= CURRENT_DATE + INTERVAL '7 days') AS ag_expiring_7,
-      (SELECT COUNT(*)::INTEGER FROM ho_agreements WHERE expiry_date = CURRENT_DATE) AS ag_expiring_today,
-      (SELECT COUNT(*)::INTEGER FROM ho_agreements WHERE expiry_date < CURRENT_DATE) AS ag_expired,
-      (SELECT COUNT(*)::INTEGER FROM ho_agreements WHERE expiry_date >= CURRENT_DATE) AS ag_pending,
+      (SELECT COUNT(*)::INTEGER FROM ho_agreements WHERE status = 'ACTIVE' AND expiry_date > CURRENT_DATE AND expiry_date <= CURRENT_DATE + INTERVAL '30 days') AS ag_expiring_30,
+      (SELECT COUNT(*)::INTEGER FROM ho_agreements WHERE status = 'ACTIVE' AND expiry_date > CURRENT_DATE AND expiry_date <= CURRENT_DATE + INTERVAL '7 days') AS ag_expiring_7,
+      (SELECT COUNT(*)::INTEGER FROM ho_agreements WHERE status = 'ACTIVE' AND expiry_date = CURRENT_DATE) AS ag_expiring_today,
+      (SELECT COUNT(*)::INTEGER FROM ho_agreements WHERE expiry_date < CURRENT_DATE OR status = 'EXPIRED') AS ag_expired,
+      (SELECT COUNT(*)::INTEGER FROM ho_agreements WHERE status = 'PENDING') AS ag_pending,
       
       -- Cost Sheets
       (SELECT COUNT(*)::INTEGER FROM ho_cost_sheets WHERE status = 'ACTIVE') AS cs_active,
-      (SELECT COUNT(*)::INTEGER FROM ho_cost_sheets WHERE expiry_date > CURRENT_DATE AND expiry_date <= CURRENT_DATE + INTERVAL '30 days') AS cs_expiring_30,
-      (SELECT COUNT(*)::INTEGER FROM ho_cost_sheets WHERE expiry_date > CURRENT_DATE AND expiry_date <= CURRENT_DATE + INTERVAL '7 days') AS cs_expiring_7,
-      (SELECT COUNT(*)::INTEGER FROM ho_cost_sheets WHERE expiry_date = CURRENT_DATE) AS cs_expiring_today,
-      (SELECT COUNT(*)::INTEGER FROM ho_cost_sheets WHERE expiry_date < CURRENT_DATE) AS cs_expired,
-      (SELECT COUNT(*)::INTEGER FROM ho_cost_sheets WHERE expiry_date >= CURRENT_DATE) AS cs_pending,
+      (SELECT COUNT(*)::INTEGER FROM ho_cost_sheets WHERE status = 'ACTIVE' AND expiry_date > CURRENT_DATE AND expiry_date <= CURRENT_DATE + INTERVAL '30 days') AS cs_expiring_30,
+      (SELECT COUNT(*)::INTEGER FROM ho_cost_sheets WHERE status = 'ACTIVE' AND expiry_date > CURRENT_DATE AND expiry_date <= CURRENT_DATE + INTERVAL '7 days') AS cs_expiring_7,
+      (SELECT COUNT(*)::INTEGER FROM ho_cost_sheets WHERE status = 'ACTIVE' AND expiry_date = CURRENT_DATE) AS cs_expiring_today,
+      (SELECT COUNT(*)::INTEGER FROM ho_cost_sheets WHERE expiry_date < CURRENT_DATE OR status = 'EXPIRED') AS cs_expired,
+      (SELECT COUNT(*)::INTEGER FROM ho_cost_sheets WHERE status = 'PENDING') AS cs_pending,
       
       -- Certifications
       (SELECT COUNT(*)::INTEGER FROM ho_certifications WHERE status = 'ACTIVE') AS cert_active,
-      (SELECT COUNT(*)::INTEGER FROM ho_certifications WHERE expiry_date > CURRENT_DATE AND expiry_date <= CURRENT_DATE + INTERVAL '30 days') AS cert_expiring_30,
-      (SELECT COUNT(*)::INTEGER FROM ho_certifications WHERE expiry_date > CURRENT_DATE AND expiry_date <= CURRENT_DATE + INTERVAL '7 days') AS cert_expiring_7,
-      (SELECT COUNT(*)::INTEGER FROM ho_certifications WHERE expiry_date = CURRENT_DATE) AS cert_expiring_today,
-      (SELECT COUNT(*)::INTEGER FROM ho_certifications WHERE expiry_date < CURRENT_DATE) AS cert_expired,
-      (SELECT COUNT(*)::INTEGER FROM ho_certifications WHERE expiry_date >= CURRENT_DATE) AS cert_pending
+      (SELECT COUNT(*)::INTEGER FROM ho_certifications WHERE status = 'ACTIVE' AND expiry_date > CURRENT_DATE AND expiry_date <= CURRENT_DATE + INTERVAL '30 days') AS cert_expiring_30,
+      (SELECT COUNT(*)::INTEGER FROM ho_certifications WHERE status = 'ACTIVE' AND expiry_date > CURRENT_DATE AND expiry_date <= CURRENT_DATE + INTERVAL '7 days') AS cert_expiring_7,
+      (SELECT COUNT(*)::INTEGER FROM ho_certifications WHERE status = 'ACTIVE' AND expiry_date = CURRENT_DATE) AS cert_expiring_today,
+      (SELECT COUNT(*)::INTEGER FROM ho_certifications WHERE expiry_date < CURRENT_DATE OR status = 'EXPIRED') AS cert_expired,
+      (SELECT COUNT(*)::INTEGER FROM ho_certifications WHERE status = 'PENDING') AS cert_pending
   `;
   
   const result = await pool.query(query);
