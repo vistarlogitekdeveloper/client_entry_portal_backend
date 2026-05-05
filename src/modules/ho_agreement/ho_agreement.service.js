@@ -135,8 +135,8 @@ exports.findAll = async (filters = {}) => {
     query += ` AND a.expiry_date BETWEEN $${i} AND $${i+1}`;
     values.push(filters.expiry_start, filters.expiry_end);
     i += 2;
-  } else if (filters.expiry_days) {
-    query += ` AND a.expiry_date > CURRENT_DATE AND a.expiry_date <= CURRENT_DATE + CAST($${i} || ' days' AS INTERVAL)`;
+  } else if (filters.expiry_days !== undefined && filters.expiry_days !== null) {
+    query += ` AND a.expiry_date >= (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date AND a.expiry_date <= (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date + CAST($${i} || ' days' AS INTERVAL)`;
     values.push(filters.expiry_days);
     i++;
   }
