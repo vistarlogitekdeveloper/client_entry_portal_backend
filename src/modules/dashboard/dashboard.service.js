@@ -25,14 +25,14 @@ exports.getDashboardStats = async (actor, filterMonth, filterYear, targetUserId)
     SELECT
       -- Global Stats
       COUNT(*)::INTEGER AS total_leads,
-      COUNT(*) FILTER (WHERE status = 'ACTIVE')::INTEGER AS active_leads,
+      COUNT(*) FILTER (WHERE final_status IS NULL OR final_status NOT IN ('WON', 'LOST'))::INTEGER AS active_leads,
       COUNT(*) FILTER (WHERE final_status = 'WON')::INTEGER AS won_leads,
       COUNT(*) FILTER (WHERE final_status = 'LOST')::INTEGER AS lost_leads,
       COALESCE(SUM(projected_value), 0)::NUMERIC AS total_pipeline_value,
-      
+
       -- Personal Stats (for the logged-in user)
       COUNT(*) FILTER (WHERE owner = $${actorParamIndex} OR lead_by = $${actorParamIndex})::INTEGER AS my_total_leads,
-      COUNT(*) FILTER (WHERE (owner = $${actorParamIndex} OR lead_by = $${actorParamIndex}) AND status = 'ACTIVE')::INTEGER AS my_active_leads,
+      COUNT(*) FILTER (WHERE (owner = $${actorParamIndex} OR lead_by = $${actorParamIndex}) AND (final_status IS NULL OR final_status NOT IN ('WON', 'LOST')))::INTEGER AS my_active_leads,
       COUNT(*) FILTER (WHERE (owner = $${actorParamIndex} OR lead_by = $${actorParamIndex}) AND final_status = 'WON')::INTEGER AS my_won_leads,
       COUNT(*) FILTER (WHERE (owner = $${actorParamIndex} OR lead_by = $${actorParamIndex}) AND final_status = 'LOST')::INTEGER AS my_lost_leads,
       COALESCE(SUM(projected_value) FILTER (WHERE owner = $${actorParamIndex} OR lead_by = $${actorParamIndex}), 0)::NUMERIC AS my_pipeline_value
