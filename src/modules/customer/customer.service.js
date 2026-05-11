@@ -133,7 +133,8 @@ exports.getCustomers = async (actor, search) => {
 
   if (search) {
     const s = `%${String(search).trim()}%`;
-    where.push(`(customer_name ILIKE $${where.length + 1} OR person_name ILIKE $${where.length + 1} OR email ILIKE $${where.length + 1})`);
+    const idx = where.length + 1;
+    where.push(`(customer_name ILIKE $${idx}::text OR person_name ILIKE $${idx}::text OR email ILIKE $${idx}::text)`);
     values.push(s);
   }
 
