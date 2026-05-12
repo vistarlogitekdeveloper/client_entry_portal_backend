@@ -10,7 +10,13 @@ const useSSL = String(process.env.DB_SSL || 'true').toLowerCase() !== 'false';
 
 const pool = new Pool({
   connectionString,
-  ssl: useSSL ? { rejectUnauthorized: false } : false
+  ssl: useSSL ? { rejectUnauthorized: false } : false,
+  max: 10,
+  idleTimeoutMillis: 30000,
+  connectionTimeoutMillis: 10000,
+  statement_timeout: 15000,
+  query_timeout: 15000,
+  keepAlive: true,
 });
 
 pool.connect()
